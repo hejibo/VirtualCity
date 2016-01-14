@@ -1,0 +1,835 @@
+/**
+ * File:    modernStreets.cga
+ * Created: 16 May 2009 10:22:18 GMT
+ * Updated: 21 Oct 2010
+ */
+
+version "2011.1"
+
+# ----------------------------------------
+# Attributes
+# ----------------------------------------
+
+
+@Group("Model Options",0) @Order(1) @Range("Low","High")
+attr Level_of_Detail = "Low"
+const highLOD = Level_of_Detail == "High" 
+
+
+# -----------------------
+# Street Attributes
+
+@Description("nbr of lanes. in case both are set to 0 (default), same number of lanes in both directions")
+@Group("Street Layout",1) @Order(1) @Range(0,4) 
+attr Nbr_of_left_lanes = 0 
+
+@Description("nbr of lanes. in case both are set to 0 (default), same number of lanes in both directions")
+@Group("Street Layout",1) @Order(2) @Range(0,4) 
+attr Nbr_of_right_lanes = 0
+
+@Description("avg lane width, only needed when lane numbers are not set (= 0)")
+@Group("Street Layout",1) @Order(3) @Range(3,8)
+attr Lane_width = 4  
+
+@Group("Street Layout") @Order(4) @Range(0,10)
+attr Median_width = case hasMedianInit: 1.5 else: 0
+
+@Group("Street Layout") @Order(5)
+attr Lawns = case p(0.5): true else: false
+
+@Group("Street Layout") @Order(6)
+attr Arrow_marking = case p(0.3): true else: false
+
+
+# -----------------------
+# Crosswalk Attributes
+
+@Description("if no crosswalks should be generated, it can be set to zero")
+@Group("Crosswalk",2) @Order(1) @Range(0,10)
+attr Crosswalk_width =
+		case lenAlongU > 3: 
+		case lenAlongV > 10: 4 else: 3 
+		else: 0  
+
+@Group("Crosswalk",2) @Order(2) @Range("American","European")
+attr Crosswalk_style = "American"
+
+
+# -----------------------
+# Street Furniture Attributes
+
+@Group("Lights",3) @Order(1) 
+attr Traffic_lights = case p(0.8): true else: false
+
+@Group("Lights") @Order(2)
+attr Lamps = case p(0.6): true else: false
+
+@Group("Lights") @Order(3) @Range(1,30)
+attr Lamp_distance = 14
+
+@Group("Trees",4) @Order(1) @Range(0,100)
+attr Tree_percentage = 60
+
+@Group("Trees") @Order(2) @Range(2,50)
+attr Tree_distance = rand(10,20)
+
+@Group("Trees") @Order(3) @Range(2,30)
+attr Tree_max_height = 7
+
+
+# -----------------------
+# Bridge Attributes
+
+@Group("Bridge",5) @Order(1) 
+attr Force_bridge = false
+
+@Group("Bridge",5) @Order(2) 
+attr Bridge_Thickness = 2.7
+
+@Group("Bridge",5) @Order(3) 
+attr Pier_distance = 23
+
+@Group("Bridge") @Order(4) 
+attr Pier_width = 2.3
+
+
+# -----------------------
+# Vehicle Attributes
+
+@Description("vehicles per km per lane")
+@Group("Traffic Density",6) @Range(0,200) @Order(1)
+attr Vehicles_per_km = 0	
+
+@Group("Traffic Density") @Range(0,100) @Order(2)		
+attr Bus_Percentage = 3
+
+# -----------------------
+# Sidewalk Attributes
+
+@Group("Sidewalk",7) @Order(1) @Range(0,100)
+attr People_percentage = 0
+
+@Group("Sidewalk") @Order(2) @Range(0,100)
+attr Props_percentage = 0
+
+@Group("Sidewalk") @Order(3) @Range(0,0.4)
+attr Sidewalk_height = 0.2  # height of sidewalk (and depth of curbs)
+
+
+# -----------------------
+# Mapped Attributes
+
+@Group("Connected Attributes",8) @Order(1) //@Hidden
+attr connectionEnd = "STREET"		# built in value attributes, needs to be sourced as Object (parent)
+
+@Group("Connected Attributes") @Order(2) //@Hidden
+attr connectionStart = "STREET"		# built in value attributes, needs to be sourced as Object (parent)
+
+@Group("Connected Attributes") @Order(3) //@Hidden
+attr type = "MINOR"                # built in value attributes, needs to be sourced as Object (parent)
+
+@Group("Connected Attributes") @Order(4)
+attr elevation = 0
+
+
+
+
+# ----------------------------------------
+# Functions
+# ----------------------------------------
+
+hasMedianInit =
+	case calcNbrOfLanes > 2.99:
+		case Nbr_of_left_lanes > 0 && Nbr_of_right_lanes > 0: true
+		case Nbr_of_left_lanes == 0 && Nbr_of_right_lanes == 0: true
+		else: false
+	else: false
+
+calcNbrOfLanes = rint(lenAlongV/ Lane_width )  
+calcLanesLeft  = rint((lenAlongV*0.5-Median_width) / Lane_width)  
+calcLanesRight = rint((lenAlongV - calcLanesLeft*Lane_width - Median_width) / Lane_width) 
+
+lenAlongU = geometry.du(0,unitSpace)		# for convenience and readability only
+lenAlongV = geometry.dv(0,unitSpace)		# for convenience and readability only
+
+
+### --------------
+# connection check helper functions
+
+# connection check depending on the mapped connection identifier
+connected(ident) = 
+	case ident =="CROSSING" : true
+	else : false
+
+# test if shape is a connected start	
+isConnectedAtStart = 
+	connected(connectionStart)
+
+# test if shape is a connected end	
+isConnectedAtEnd = 
+	connected(connectionEnd)
+
+# returns 1 if a crossing at start/end, otherwise 0. Used as split dimension for crosswalk split
+conStart = 
+	case isConnectedAtStart : 1 else: 0
+conEnd   = 
+	case isConnectedAtEnd: 1 else: 0
+
+
+# ----------------------------------------
+# Assets
+# ----------------------------------------
+
+LOD = case highLOD: 1 else: 0
+
+# Street Textures
+concrete_tex  = "assets/streets/asphalt.png"
+sidewalk_tex  = "assets/streets/asphalt_brighter.png"
+crosswalk_tex = case Crosswalk_style == "American": "assets/streets/crosswalk_us.png" else: "assets/streets/crosswalk.png"
+curb_tex      = "assets/streets/curb.png"
+
+arrows = case Arrow_marking: "arrows" else: "stop"
+
+getStreetTexture(type,lanes) =
+	case lanes >= 4 : "assets/streets/street_4lanes_" + type + ".png"
+	case lanes < 1  : "assets/streets/street_1lanes_" + type + ".png"
+	else            : "assets/streets/street_" + lanes + "lanes_" + type + ".png"
+
+# sidewalk props
+newsbox1_tex  = "assets/streets/boxes/boitenews01red.png"
+newsbox2_tex  = "assets/streets/boxes/boitenews01redgris.png"
+mailbox_tex   = "assets/streets/boxes/mailbox01.png"
+newsbox_asset = "assets/streets/boxes/newsbox.01.lod1.obj"
+mailbox_asset = "assets/streets/boxes/mailbox.01.lod" + LOD + ".obj"
+	
+# signs
+signs_tex = "assets/streets/signs/varioussigns.png"
+getSign = 
+	12% : "assets/streets/signs/handicaparking.obj"
+	12% : "assets/streets/signs/noparkfireline.obj"
+	12% : "assets/streets/signs/noparking.obj"
+	12% : "assets/streets/signs/noparkinganytime.obj"
+	12% : "assets/streets/signs/noparkthiside.obj"
+	12% : "assets/streets/signs/paralelparkonly.obj"
+	12% : "assets/streets/signs/reservedparking.obj"
+	else : "assets/streets/signs/sign_noparkfireline.obj"
+
+# lamps
+lamp2_texasset = "assets/streets/lamps/lamp.02.parallel.lod" + LOD + ".obj"
+lamp3_texasset = "assets/streets/lamps/lamp.03.withsign.lod" + LOD + ".obj"
+lamp4_texasset = "assets/streets/lamps/lamp.04.single.lod0.obj"
+lamp5_texasset = "assets/streets/lamps/lamp.05.withsign.lod0.obj"
+
+# trafficlights
+trafficlight1_texasset = "assets/streets/lamps/traffic_light.01.with_walking_signs.lod" + LOD + ".obj"
+trafficlight2_texasset = "assets/streets/lamps/traffic_light.02.big_with_lamp_and_sign.lod" + LOD + ".obj"
+trafficlight3_texasset = "assets/streets/lamps/traffic_light.03.4sides.obj"
+bigsign1_texasset = "assets/streets/lamps/bigsign.01.luminated.lod" + LOD + ".obj"
+bigsign2_texasset = "assets/streets/lamps/bigsign.02.with_lamp.lod1.obj"
+
+# vegetation
+tree =   
+	case highLOD : fileRandom("assets/trees/tree_eu03_11_*.obj")
+	else         : fileRandom("assets/trees/alleyTree_*_v1.obj")
+
+
+
+
+# -------------------
+# Street Rule
+# -------------------
+
+
+Street --> 
+	alignScopeToAxes(y)
+	split(u,unitSpace,0){ Crosswalk_width *conStart : Crosswalk(-1) 
+				| ~1                                : Streetsides
+				| Crosswalk_width *conEnd           : Crosswalk(1) }	
+	BridgeMain
+
+# create left and right side of the street (per default same nbr of lanes in both directions, but user can influence it via attributes)
+Streetsides -->
+	case calcNbrOfLanes < 1.1 : Asphalt
+	case Nbr_of_left_lanes == 0 && Nbr_of_right_lanes == 0:
+		split(v,unitSpace,0){ ~calcLanesLeft  		: Lanes(calcNbrOfLanes,connectionEnd,0) Vehicles(0)
+							| Median_width    		: Median
+							| ~calcLanesRight 		: scaleUV(0,-1,-1) Lanes(calcNbrOfLanes,connectionStart,2) Vehicles(2) }
+	else:
+		split(v,unitSpace,0){ ~Nbr_of_left_lanes	: Lanes(Nbr_of_left_lanes,connectionEnd,0) Vehicles(0)
+							| Median_width    		: Median
+							| ~Nbr_of_right_lanes	: scaleUV(0,-1,-1) Lanes(Nbr_of_right_lanes,connectionStart,2) Vehicles(2) }
+
+# Lanes
+Lanes(nLanes,connectionType,dir) --> 
+	case connectionType == "STREET" || lenAlongU < 10:
+		Asphalt("stripes",nLanes) 
+	case connectionType == "JUNCTION" && type == "MAJOR": 
+		Asphalt("stripes",nLanes)
+	else: 
+		split(u,unitSpace,0){ ~1  : Asphalt("stripes",nLanes) 
+				|  12 : Asphalt(arrows,nLanes) TrafficLight(dir) }
+
+# Asphalt
+# - with lanes
+Asphalt(type,nLanes) -->
+	case lenAlongU > 3:
+		[ extrude(0.1) comp(f){all: NIL} ] // required for occlusion check
+		normalizeUV(0, uv, collectiveAllFaces) 
+		scaleUV(0,0.5*rint(lenAlongU/6),1)
+		texture(getStreetTexture(type,nLanes))
+		Asphalt.
+	else:
+		Asphalt
+
+# - no lanes
+Asphalt -->
+	[ extrude(0.1) comp(f){all: NIL} ] // required for occlusion check
+	setupProjection(0, world.xz, 12, 9) projectUV(0)
+	texture(concrete_tex)
+	Asphalt.
+
+# -------------------
+# Traffic Light
+# -------------------
+
+TrafficLight(dir) -->
+	case Traffic_lights : 
+		split(u,unitSpace,0){ ~1 : NIL 
+				| 0.1: split(v,unitSpace,0){ 0.1: t(0, Sidewalk_height ,(1-dir)*2* Sidewalk_height ) alignScopeToAxes(y) TrafficLightAsset(dir) } }
+	else : 
+		NIL
+
+TrafficLightAsset(dir) -->
+	10% : s(0,3,0) r(0,-90+dir*90,0) i(trafficlight1_texasset)
+	30% : s(0,6,0) r(0,-90+dir*90,0) i(bigsign1_texasset)
+	10% : s(0,8,0) r(0,-90+dir*90,0) i(bigsign2_texasset)
+	20% : s(0,2,0) r(0,-90+dir*90,0) i(trafficlight3_texasset)
+	else: s(0,6,0) r(0,-90+dir*90,0) i(trafficlight2_texasset)
+
+
+# -------------------
+# Crossing & Junction
+# -------------------
+		
+Crossing --> 
+	alignScopeToAxes(y)
+	Asphalt
+	BridgeCrossing		
+			
+Junction --> 
+	alignScopeToAxes(y)
+	Streetsides
+	BridgeCrossing
+
+JunctionEntry --> 
+	alignScopeToAxes(y)
+	Asphalt
+	BridgeCrossing
+
+Island -->
+	NIL
+
+# -------------------
+# Crosswalk
+# -------------------
+
+# splits the street the same way as before the lanes
+Crosswalk(side) -->
+	case Median_width > 0 && Nbr_of_left_lanes == 0 && Nbr_of_right_lanes == 0:
+		split(v,unitSpace,0){ ~calcLanesLeft  				: CrosswalkTex 
+				| Median_width - Sidewalk_height	: Isle(side) 
+				| ~calcLanesRight 				: CrosswalkTex }
+	case Median_width > 0:
+		split(v,unitSpace,0){ ~ Nbr_of_left_lanes  					: CrosswalkTex 
+				| Median_width - Sidewalk_height	: Isle(side) 
+				| ~ Nbr_of_right_lanes 					: CrosswalkTex }
+	else :
+		CrosswalkTex
+		
+# texture the shape
+CrosswalkTex --> 
+		setupProjection(0,scope.xz,'1,10) projectUV(0)	
+		normalizeUV(0, uv, collectiveAllFaces)
+		scaleUV(0,1,ceil(lenAlongV)/8)
+		texture(crosswalk_tex)
+
+# the isle is a small extrusion plus a round median-end is added
+Isle(side) -->
+	alignScopeToGeometry(zUp, 0, 0) 
+	MedianWithCurb( Sidewalk_height *0.2, true)
+	RoundMedian(side)
+	
+
+# the median end is translated and splitted according to the side parameter
+RoundMedian(side) -->
+	case side == 1:
+		t('1,0,0) s( Median_width , Median_width ,'1) center(y) 
+		split(u,unitSpace,0){ Sidewalk_height  : SolidCurbsNormal
+				| ~1 			  : MedianWithCurbNormal( Sidewalk_height )
+				| Median_width *0.5 : RoundCurbs(0) }
+	else:
+		s( Median_width , Median_width ,'1) t('-1,0,0) center(y) 
+		split(u,unitSpace,0){ Median_width *0.5 : RoundCurbs(2) 
+				| ~1 			  : MedianWithCurbNormal( Sidewalk_height )
+				| Sidewalk_height  : SolidCurbsNormal }
+		
+# and insert half a cylinder
+RoundCurbs(index) -->
+	extrude( Sidewalk_height ) setPivot(xyz,index) 
+	i("streets/roundcurbs.obj") 
+	comp(f){ top   : split(y){ Sidewalk_height : Curbs | ~1 : Pavement }
+	       | side  : Curbs }	
+	
+
+# -------------------
+# Median
+# -------------------
+
+Median -->
+	MedianWithCurbs
+	alignScopeToAxes(y) 
+	CenterLamps CenterTrees
+
+# adds curbs on all sides
+MedianWithCurbs -->
+	case Crosswalk_width > 0 || Median_width < 1:
+		split(u,unitSpace,0){ Sidewalk_height *conStart : SolidCurbs 
+				| ~1 			 		  : MedianWithCurb( Sidewalk_height , false)
+				| Sidewalk_height *conEnd   : SolidCurbs }
+	else:	# in case crosswalkWidth is set to zero, we make a round finishing
+		split(u,unitSpace,0){ lenAlongV*0.5*conStart : Asphalt RoundCurbs(2) 
+				| ~1 			 		: MedianWithCurb( Sidewalk_height , false)
+				| lenAlongV*0.5*conEnd   : Asphalt RoundCurbs(0) }
+
+MedianWithCurb(h, crosswalk) -->
+	extrude(world.y,h)
+	comp(f){ top  : split(v,unitSpace,0){ Sidewalk_height : Curbs | ~1 : PavementOrLawn(crosswalk) | Sidewalk_height : Curbs }
+		   | side : Curbs }
+		   
+MedianWithCurbNormal(h) -->
+	extrude(h)
+	comp(f){ top  : split(v,unitSpace,0){ Sidewalk_height : Curbs | ~1 : Pavement | Sidewalk_height : Curbs }
+		   | side : Curbs }		   
+
+PavementOrLawn(crosswalk) -->
+	#disabled lawn due to conn attrs on SW
+	case Lawns && !crosswalk : Lawn
+	else : Pavement
+
+# distributes lamps
+CenterLamps -->
+	case Lamps : 
+		split(u,unitSpace,0){ ~ Lamp_distance :  NIL 
+				| { 0.1: alignScopeToGeometry(yUp,0,0) s(0,0,0) center(xyz) Lamp(2) 
+				  | ~ Lamp_distance : NIL }* }
+	else : NIL
+
+# and trees
+CenterTrees -->
+	case p(Tree_percentage/100) && scope.sz > 1.5: 
+		split(u,unitSpace,0){ ~ Tree_distance *0.5 : NIL 
+				| { 0.1: s(0,0,0) center(xyz) Tree | ~ Lamp_distance : NIL }*
+				| 0.1: s(0,0,0) center(xyz) Tree | ~ Lamp_distance *0.5 : NIL }
+	else : NIL
+
+
+# ----------------------------------------
+# Bridge Construction
+# ----------------------------------------
+
+const isBridge = Force_bridge ||
+	convert(y,scope,world,pos,scope.sx*0.5,scope.sy*0.5,scope.sz*0.5)-elevation > 2
+const isRaised = 
+	convert(y,scope,world,pos,scope.sx*0.5,scope.sy*0.5,scope.sz*0.5)-elevation > 0.5
+
+heightOverTerrain = convert(y,scope,world,pos,scope.sx*0.5,scope.sy*0.5,scope.sz*0.5)-elevation
+
+BridgeMain -->
+	case isBridge:	
+		BridgeConcrete(Bridge_Thickness)
+		translate(rel,world,0,-Bridge_Thickness,0)
+		split(u,unitSpace,0){ ~Pier_distance/2 :  NIL 
+			| { Pier_width : Pier | ~Pier_distance :  NIL }* 
+			| Pier_width : Pier |  ~Pier_distance :  NIL }
+	else : NIL
+
+Pier -->
+	case heightOverTerrain > 0:
+		split(v,unitSpace,0){ '0.15: NIL
+			| ~1: alignScopeToGeometry(yUp,0,0) 
+				  extrude(world.y,-heightOverTerrain)
+				  alignScopeToAxes(y)
+				  s('1,'20,'1) t(0,'-0.5,0) PierCheck
+			| '0.15: NIL }
+	else : NIL
+
+PierCheck -->
+	case overlaps(inter):
+		NIL
+	else:
+		t(0,'0.5,0) s('1,'0.05,'1)
+		split(y){2.2: PierBase | ~1: PierShafts | 1: BridgeSolid }
+		
+PierShafts -->
+	case scope.sz > 7:
+		split(x){ 0.5: NIL 
+				| ~1 : split(z){ ~1: NIL | ~3: comp(f){side: BridgeSolid}  | ~4: NIL | ~3: comp(f){side: BridgeSolid} | ~1: NIL }
+				| 0.5: NIL }
+	else:
+		split(x){ 0.5: NIL 
+				| ~1 : split(z){ ~0.5: NIL | ~3: comp(f){side: BridgeSolid} | ~0.5: NIL }
+				| 0.5: NIL }
+		
+PierBase -->
+	s('1,scope.sy+5,'1) t(0,-5.3,0) i("builtin:cube")
+	comp(f){ side: BridgeSolid | top: roofHip(60) split(y){ 0.3: BridgeSolid } }
+
+BridgeSide -->
+	case isBridge:
+		BridgeRailing
+		BridgeConcrete(0.4) translate(rel,world,0,-0.4,0)
+		reverseNormals 
+		comp(f){all: BridgeSlope }
+	case isRaised:
+		BridgeConcrete(2)
+	else : NIL
+
+BridgeCrossing -->
+	case isBridge:
+		BridgeConcrete(Bridge_Thickness)
+	else : NIL
+
+BridgeSlope -->
+	case geometry.isRectangular(10) && Bridge_Thickness > 2:
+		roofShed(23,2)
+		comp(f){all = BridgeMaterial }
+	else:
+		NIL
+
+BridgeConcrete(height) -->
+	translate(rel,world,0,-height,0)
+	extrude(world.y,height)
+	comp(f){top: NIL | all= BridgeMaterial }
+
+BridgeRailing -->
+	case highLOD == true:
+		translate(rel,world,0, Sidewalk_height ,0)
+		split(v,unitSpace,0){ ~1: NIL | 0.4: extrude(world.y,0.8) color("#eeeeee") comp(f){all: BridgeMaterial} }
+		split(v,unitSpace,0){ ~1: NIL | 0.1: translate(rel,world,0,0.8,0) VerticalRails translate(rel,world,0,0.3,0) extrude(world.y,0.05) RailMaterial | 0.17: NIL }
+	else:
+		translate(rel,world,0, Sidewalk_height ,0)
+		split(v,unitSpace,0){ ~1: NIL | 0.4: extrude(world.y,0.8) color("#eeeeee") comp(f){all: BridgeMaterial } }
+		split(v,unitSpace,0){ ~1: NIL | 0.1: translate(rel,world,0,0.8,0) VerticalRails translate(rel,world,0,0.3,0) comp(f){ all: extrude(world.y,0.05) comp(f){front: RailMaterial} | 0.17: NIL } }
+
+VerticalRails -->
+	case highLOD == true:
+		comp(f){all: split(x){ ~1 : NIL 
+							 | 0.1: s('1,0.07,'1) center(y) extrude(world.y,0.3) RailMaterial
+							 | { ~2 : NIL 
+							 |   0.1: s('1,0.07,'1) center(y) extrude(world.y,0.3) RailMaterial }*
+							 | ~1 : NIL } }
+	else:
+		comp(f){all: split(x){ ~1 : NIL 
+							 | 0.1: s('1,0.07,'1) center(y) extrude(world.y,0.3) comp(f){front: RailMaterial}
+							 | { ~2 : NIL 
+							 |   0.1: s('1,0.07,'1) center(y) extrude(world.y,0.3) comp(f){front: RailMaterial} }*
+							 | ~1 : NIL } }		
+
+BridgeSolid -->
+	comp(f){ all: setupProjection(2,scope.xy,'1,'1) projectUV(2)
+				  set(material.dirtmap,"streets/dirtmap.1.512x512.png")
+				  BridgeMaterial }
+
+BridgeMaterial -->
+	setupProjection(0,scope.xy,~12,~9,1) projectUV(0)
+	texture(sidewalk_tex)
+	
+RailMaterial -->
+	set(material.specular.r, 1)
+	set(material.specular.g, 1)
+	set(material.specular.b, 1)
+	set(material.shininess, 20)
+	color("#cccccc")
+	setupProjection(0,scope.xy,~12,~9,1) projectUV(0)
+	texture(concrete_tex)
+		
+
+# ----------------------------------------
+# Sidewalk
+# ----------------------------------------
+
+Sidewalk --> 
+	alignScopeToAxes(y) 
+	BridgeSide
+	SidewalkWithCurbs 
+	t(0, Sidewalk_height ,0)
+	SidewalkLamps SidewalkTrees SidewalkProps People
+
+SidewalkWithCurbs --> 
+	extrude(world.y, Sidewalk_height )
+	comp(f){ top   : split(y){ Sidewalk_height : Curbs | ~1 : GrassPavement }
+	       | side : Curbs }
+
+SidewalkLamps -->
+	case Lamps && lenAlongU > 5: 
+		split(u,unitSpace,0){ ~ Lamp_distance :  NIL 
+				| { 0.1: t(0,0,scope.sz- Sidewalk_height *2) Lamp(3) | ~ Lamp_distance : NIL }* }
+	else : NIL
+
+SidewalkTrees -->
+	case lenAlongV > 3 && lenAlongU > 5: 
+		split(u,unitSpace,0){ ~ Tree_distance *0.5 : NIL 
+				| { 0.1: Tree | ~ Tree_distance : NIL }*
+				| 0.1: Tree | ~ Tree_distance *0.5 : NIL }
+	else : NIL
+	
+SidewalkProps -->
+	case p(Props_percentage/100) && lenAlongU > 5:
+		split(u,unitSpace,0){ Crosswalk_width *2.5+rand(-2,2): NIL
+				| 0.1: Box | ~1: NIL | 0.1: StreetFurniture
+				| Crosswalk_width *2.5+rand(-2,2): NIL }
+		split(u,unitSpace,0){ ~ Lamp_distance *0.5 :  NIL  
+				| { 0.1 : SignAsset | ~ Lamp_distance : NIL }* 
+				| 0.1 : SignAsset | ~ Lamp_distance *0.5 :  NIL  }
+	else: NIL
+
+# ---------------------
+# Assets
+# ---------------------
+
+Lamp(index) -->
+	alignScopeToAxes(y)		// place the Lamps vertically
+	s(0,5,0)				// set height to 5 meters
+	LampAsset(index)		// since the scope's dimenstion are zero in x and z, these are set according to the asset
+
+LampAsset(nr) -->
+	case nr == 2 : r(0,90,0) i(lamp2_texasset) 
+	case nr == 3 : r(0,90,0) i(lamp3_texasset) 
+	case nr == 4 : i(lamp4_texasset)
+	else         : i(lamp5_texasset)
+
+Tree -->
+	case heightOverTerrain < 2 && p(Tree_percentage/100):
+		t(0,0,'0.65)				// in the middle of the sidewalk
+		s(0,rand( Tree_max_height *0.95, Tree_max_height ),0)		// set height
+		r(0,rand(0,360),0)		// randdom rotate 
+		i(tree)					// since the scope's dimenstion are zero in x and z, these are set according to the asset
+		set(material.opacity,1.0)
+		#set(material.opacitymap,"trees/EU03lef_v3.png")
+		
+	else : NIL
+	
+Box -->
+	case p(Props_percentage/100) && heightOverTerrain < 2:
+		t(0,0,scope.sz- Sidewalk_height -rand(0.5,1))
+		s(0,rand(0.9,1.3),0) r(scopeCenter,0,180,0) 
+		BoxAsset
+	else : NIL
+
+BoxAsset -->
+	33%  : texture(newsbox1_tex) i(newsbox_asset)
+	33%	 : texture(newsbox2_tex) i(newsbox_asset)
+	else : texture(mailbox_tex) i(mailbox_asset)
+
+SignAsset -->
+	case p(Props_percentage/100*0.3) : 
+		t(0,0,scope.sz- Sidewalk_height *2-0.25) 
+		s(0.5,2,0.1) r(scopeCenter,0,-90,0) 
+		texture(signs_tex) i(getSign)
+	else : NIL
+
+StreetFurniture -->
+	case heightOverTerrain < 2:
+		s(0,0,0)
+		t(0,0,rand(-.1,.4))
+		i(fileRandom("assets/streetFurniture/*.obj"))
+	else : NIL
+
+
+# ----------------------------------------
+# Rules needed by all
+# ----------------------------------------
+	
+SolidCurbs -->
+	extrude(world.y, Sidewalk_height ) 
+	comp(f){ top: alignScopeToGeometry(zUp,1) Curbs | side: Curbs }	
+
+SolidCurbsNormal -->
+	extrude( Sidewalk_height ) 
+	comp(f){ top: alignScopeToGeometry(zUp,1) Curbs | side: Curbs }	
+
+Curbs --> 
+	case scope.sx < 0.5:
+		setupProjection(0,scope.xy,1,'1) projectUV(0) 
+		translateUV(0,-scope.sx/2,0)
+		texture(curb_tex)
+	else:
+		setupProjection(0,scope.xy,~1.1,'1) projectUV(0)	
+		texture(curb_tex)
+
+GrassPavement -->
+	case Lawns && lenAlongV > 2 && lenAlongU > 8:
+		split(u,unitSpace,0){ Crosswalk_width*2: Pavement 
+			| split(v,unitSpace,0){'0.3 : split(u,unitSpace,0){ ~8 : Lawn | { ~2:  Pavement | ~8 : Lawn }* } 
+				| ~1 : Pavement }
+			| Crosswalk_width*2: Pavement}
+	else :  Pavement
+
+InnerPavement -->
+	split(z){~1 : Pavement | 2 : Grass}
+
+Grass -->
+	s('1,0.05,'1)
+	i("/general/assets/obj/primitives/cube.notop.notex.obj")
+	t(0,'-1,0)
+	comp(f){bottom :
+	alignScopeToGeometry(yUp, 0,0)
+	setupProjection(0,scope.xz,scope.sx*6,scope.sz*10) projectUV(0) translateUV(0,0.31,0.62)  
+	set(material.colormap,"trees/EU03lef.png") Grass. }
+
+Lawn -->
+	setupProjection(0,scope.xy,scope.sx*6,scope.sy*10) projectUV(0) translateUV(0,0.31,0.62)  
+	set(material.colormap,"trees/EU03lef.png")
+
+Pavement -->
+	alignScopeToGeometry(zUp, 0,0)
+	Pavement(rand(10),rand(10))
+
+Pavement(texUOffset,texVOffset) -->
+	setupProjection(0,scope.xy,12,9,texUOffset,texVOffset) projectUV(0)
+	texture(sidewalk_tex)
+	
+			
+	
+	
+# -------------------------------------------
+# People
+# 
+# Sample assets provided by lowpolygon3d.com
+# 
+# More assets with high-res textures can be 
+# purchased at http://www.lowpolygon3d.com.
+# 
+# -------------------------------------------
+
+peopleAsset = fileRandom("assets/people_by_lowpolygon3d_com/*.obj")
+dirHuman = 50%: 90 else: -90
+
+People -->
+	case People_percentage > 0:
+		50% : split(u,unitSpace,0){ { 0.1: Human | ~rand(2,5): NIL | 0.1: Human | ~rand(2,5): NIL }* | 0.1: Human }          # could be distributed better...
+		else: split(u,unitSpace,0){ { 0.1: Human | ~rand(0.5,5.5): NIL | 0.1: Human | ~rand(0.5,5.5): NIL }* | 0.1: Human }  # could be distributed better...
+	else:
+		NIL
+	
+Human -->
+	case (scope.sz < 2 && p(People_percentage/100*0.3)) 
+			|| (scope.sz >= 2 && p(People_percentage/100)):
+		t(0,0,'rand(0.1,0.6))
+		s(0,rand(1.7,1.9),0) r(0,dirHuman,0) 
+		i(peopleAsset)
+	else:
+		NIL
+	
+###################################################3
+# Office Buildings
+#
+
+commercialBuildingWidth = 70%: rand(15,25) else: rand(25,80)
+
+CommercialBlock -->
+	case scope.sz > 40: 
+		setback(rand(40,80)){ front: CommercialRow | remainder: rotateScope(0,180,0) CommercialRow }
+	else:
+		CommercialRow
+
+CommercialRow -->
+	case scope.sx > 30:
+		split(x){ commercialBuildingWidth: CommercialLot | ~1: CommercialRow }
+	else:
+		CommercialLot
+
+CommercialLot -->
+		40% : split(z){ '(rand(0.2,0.4)): ParkingGround | ~1: ParkingGround CommercialBuildingArea(1) | (rand(4)): GreenGround }		# 20% with a setback
+		30% : GreenGround split(z){ '(rand(0.2,0.4)): FewTrees | ~1: CommercialBuildingArea(1) }
+		else: GreenGround split(z){ '(rand(0.2,0.4)): Trees | ~1: CommercialBuildingArea(1) }
+
+CommercialBuildingArea(count) -->
+	case scope.sx < 10 || scope.sz < 10:  	# too small to build a house
+		NIL
+	else:
+		alignScopeToAxes(y) s('1,0,'1) 		# there are different possibilites to handle non-horizontal lots... scaling it to zero in the y-direction like here is the simplest way to handle it
+		CommercialBuilding(count)
+		
+CommercialBuilding(count) -->
+	cleanupGeometry(all, 1)
+	# building settings
+	set(buildingHeight,		case scope.sx>40: rand(16,30) else: rand(10,20))
+	set(groundFloorHeight,	rand(4,5.5))
+	set(roofAngle,			rand(20,30))
+	set(roofOverhang,		0)
+	# facade settings
+	set(Facade_Textures.Usage,				"")
+	set(Facade_Textures.BuildingHeight,		buildingHeight*HeightFactor)
+	set(Facade_Textures.UpperfloorsTexture,	Facade_Textures.getUpperfloorsTexture)
+	set(Facade_Textures.GroundfloorTexture,	Facade_Textures.getGroundfloorTexture)
+	set(Facade_Textures.UpperfloorHeight,		rand(2.8,3.3))
+	set(Facade_Textures.GroundfloorHeight,	groundFloorHeight)
+	set(Facade_Textures.TileWidth,			rand(2.2,3.7))
+	# roof settings
+	set(Roof_Textures.FlatRoofTexture, 	Roof_Textures.getFlatRoofTexture)
+	set(Roof_Textures.SlopedRoofTexture, Roof_Textures.getSlopedRoofTexture)
+	# invoke geometry creation	
+	offset(case scope.sx>30 && p(0.6): -rand(2,6) else: 0,inside) 
+	CommercialShape(buildingHeight)
+
+ CommercialShape(h) -->
+ 	35% : shapeL(scope.sz*rand(0.7,0.95),scope.sx*rand(0.2,0.8)){ shape:  CommercialMass(h) }
+ 	35% : shapeU(scope.sz*rand(0.7,0.95),scope.sx*rand(0.2,0.8),0){ shape:  CommercialMass(h) }
+ 	else: shapeU(scope.sz*rand(0.8,0.95),scope.sx*rand(0.2,0.45),scope.sx*rand(0.2,0.45)){ shape:  CommercialMass(h) }
+
+ CommercialMass(h) -->
+ 	99% : Mass(h,"rooffloor")
+	else: Mass(h,"flat")
+	
+		
+	
+
+# -------------------------------------------
+# Vehicles
+# 
+# Sample assets provided by lowpolygon3d.com
+# 
+# More assets with high-res textures can be 
+# purchased at http://www.lowpolygon3d.com.
+# 
+# -------------------------------------------
+
+vehicleAsset(type) = fileRandom("assets/vehicles_by_lowpolygon3d_com/"+type+"/*.obj")
+
+const vehiclesProb = ( Vehicles_per_km *minCarDistance)/1000
+const minCarDistance = 6
+
+Vehicles(dir) -->
+	case vehiclesProb > 0:
+		split(v,unitSpace,0){ ~ Lane_width : VehiclesOnLane(dir) }*		
+	else:
+		NIL
+	
+VehiclesOnLane(dir) -->
+	case lenAlongU > 10 && p(Bus_Percentage/100):
+		split(u,unitSpace,0){ ~1: VehiclesOnLane(dir) | (rand(15,25)): Vehicle(dir,"bus") }
+	case lenAlongU > 5:
+		split(u,unitSpace,0){ ~1: VehiclesOnLane(dir) | (rand(minCarDistance,15)): Vehicle(dir,"car") }
+	else:
+		NIL
+	
+Vehicle(dir,type) --> 
+	case p(vehiclesProb):
+		split(u,unitSpace,0){ ~1: NIL | 0.5: alignScopeToGeometry(yUp,dir) VehicleAsset(type) | ~1: NIL }
+	else:
+		NIL	
+		
+VehicleAsset(type) -->
+	t(0,0,'rand(0.4,0.6)) s(0,0,0) r(0,90,0) i(vehicleAsset(type))
+	set(material.opacity,1.0)

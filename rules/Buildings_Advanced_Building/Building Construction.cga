@@ -1,0 +1,599 @@
+/**
+ * File:    Building Construction.cga
+ * Authoer: Esri
+ */ 
+
+version "2015.0"
+
+
+import Facade_Construction : "Support/Building Facades.cga" #(Display_Textures = Display_Textures, Display_Thematics = Display_Thematics, Solid_Color = Solid_Color, Transparency = Transparency, Upper_Floor_Height = Upper_Floor_Height, Ground_Floor_Height = Ground_Floor_Height, DisableMassDisplay = DisableMassDisplay)
+import Green_Space : "Support/Greenspace Attributes.cga" #(Display_Textures = Display_Textures, Display_Thematics = Display_Thematics, Solid_Color = Solid_Color, Transparency = Transparency)
+import Zoning : "Support/Zoning.cga" #(Foundation_Height = Foundation_Height, Foundation_Adjustment = Foundation_Adjustment)
+import envReports : "Support/Environment Reporting.cga"
+import Building_Performance : "Support/Building Performance.cga"
+
+
+################################################
+# DISPLAY OPTIONS
+
+@Group("DISPLAY OPTIONS",0) @Order(1)
+attr Display_Textures = true
+
+@Group("DISPLAY OPTIONS") @Order(2)
+@Range("Thematics Off", "Solid Color", "Usage", "Peak Runoff/Permeability")
+attr Display_Thematics = "Thematics Off" 
+
+@Group("DISPLAY OPTIONS") @Order(3)
+attr Solid_Color = "#FFFFFF"
+
+@Group("DISPLAY OPTIONS") @Order(4) @Range(0,1)
+attr Transparency = 1
+
+@Group("DISPLAY OPTIONS") @Order(10)
+attr Story_Edge_Display = false
+
+@Group("DISPLAY OPTIONS") @Order(11)
+attr Story_Edge_Size = 0.15
+
+@Group("DISPLAY OPTIONS") @Order(12) 
+attr Story_Edge_Color = "#ffffff"
+
+
+texturingOn = Display_Textures 	# Shorthand.
+thematicsOn = Display_Thematics != "Thematics Off"
+coloringOn = !thematicsOn	# Shorthand.
+
+thematicColor = 
+	case Display_Thematics == "Peak Runoff/Permeability":
+		# Specific materials will be colored down the road, but everything else will use white.
+		"#FFFFFF"
+	case Display_Thematics == "Solid Color":
+		Solid_Color
+	case Display_Thematics == "Usage":
+		Zoning.usageColor(Zoning.Zone_1_Usage)
+	else:
+		"#FFFFFF"
+
+@Hidden
+attr DisableMassDisplay = Zoning.Zoning_Display == "Building & Envelope"
+
+
+
+################################################################
+
+
+Lot --> 
+Parcel
+
+################################################################
+## ATTRIBUTES
+##
+
+## Building Height ################################
+
+
+@Group("BUILDING HEIGHT",1) @Order(1) @Range(2,20)
+attr Floor_Count_Min = Zoning.Floor_Count_Min	
+
+@Group("BUILDING HEIGHT") @Order(2) @Range(2,20)
+attr Floor_Count_Max = Zoning.Floor_Count_Max
+
+@Group("BUILDING HEIGHT") @Order(3) @Range("None","Increasing","Decreasing","Alternating","Random")
+attr Variation_Mode = "None"
+
+@Group("BUILDING HEIGHT") @Order(4) @Range(3,5) @Description("Floor-to-floor height (residential buildings are normally constructed with a floor-to-floor height of about 3m, office buildings up to 4m)")
+attr Upper_Floor_Height = Zoning.Upper_Floor_Height
+
+@Group("BUILDING HEIGHT") @Order(5) @Range(3,7)
+attr Ground_Floor_Height = Zoning.Ground_Floor_Height
+
+@Description("Adjust to place front door at exact elevation.")
+@Group("BUILDING HEIGHT",1) @Order(6) @Range(-4.1,4.1)
+attr Foundation_Adjustment = 0
+
+@Description("Applied to entire parcel to match sidewalk. If rule is applied to static shape, then adjust this to zero.")
+@Group("BUILDING HEIGHT",1) @Order(7) @Range(0, 0.2)
+attr Sidewalk_Height_Match = 0
+
+## Building Setbacks ################################
+ 
+@Group("BUILDING SETBACKS",2) @Order(1) @Range(0,20)
+attr Street_Setback = Zoning.Street_Setback
+
+@Group("BUILDING SETBACKS") @Order(2) @Range(0,10)
+attr Side_Setback = Zoning.Side_Setback
+ 
+@Group("BUILDING SETBACKS") @Order(2) @Range(0,10)
+attr Back_Setback = Zoning.Back_Setback
+
+@Group("BUILDING SETBACKS") @Order(3) @Range("None","2 Stepbacks","2nd Floor","Top Floor","Increasing","Decreasing","Alternating","Random")
+attr Street_Setback_Mode = "None"
+
+@Group("BUILDING SETBACKS") @Order(4) @Range(0,10)
+attr Street_Setback_Distance = 2
+
+## Footprint Layout ################################
+
+@Group("FOOTPRINT LAYOUT",3) @Order(1) @Range("Along Street","Along Front","L-Shape Left","L-Shape Right","U-Shape","Total Area")
+attr Layout_Shape = "Along Street" 
+
+@Group("FOOTPRINT LAYOUT") @Order(2) @Range("Open To Back","Open To Front")
+attr Layout_Orientation = "Open To Back"
+
+@Group("FOOTPRINT LAYOUT") @Order(3) @Range(7,20)
+attr Wing_Width = 13
+
+## Footprint Partition ################################
+
+@Group("FOOTPRINT PARTITION",4) @Order(1) @Range(10,50)
+attr Unit_Width = 15
+
+@Group("FOOTPRINT PARTITION") @Order(2) @Range("None","Increasing","Decreasing","Alternating","Random")
+attr Offset_Mode = "None"
+
+@Group("FOOTPRINT PARTITION") @Order(3) @Range(0,10)
+attr Offset_Distance = 5
+
+## CUT/FILL ################################
+
+@Description("These are used for internal calculations - they must be set to 'Source=Object'")
+@Group("LINK TO OBJECT ATTRIBUTES",99) @Order(1)
+attr cutVolume = 0
+
+@Description("These are used for internal calculations - they must be set to 'Source=Object'")
+@Group("LINK TO OBJECT ATTRIBUTES",99) @Order(2)
+attr fillVolume = 0
+	
+
+
+
+## Hidden Attributes used for Reporting ########################
+
+@Hidden
+attr Lot_Area = geometry.area
+@Hidden
+attr Elevation = scope.elevation
+@Hidden
+attr Foundation_Height = 0
+
+
+################################################################
+## FUNCTIONS
+##
+
+offsetDistance = case Offset_Mode == "None": 0 else: Offset_Distance
+mainWingWidth = 
+	case Street_Setback_Mode == "None": Wing_Width + offsetDistance
+	else:     Wing_Width + Street_Setback_Distance + offsetDistance
+	
+getHeight(idx,n) = Ground_Floor_Height + (nFloors(idx,n)-1)*Upper_Floor_Height
+nFloors(idx,n) = 	
+	case Variation_Mode == "None" || n < 2 : Floor_Count_Max
+	case Variation_Mode == "Increasing"    : Floor_Count_Min + rint((Floor_Count_Max-Floor_Count_Min)*idx/(n-1))
+	case Variation_Mode == "Decreasing"    : Floor_Count_Min + rint((Floor_Count_Max-Floor_Count_Min)*(1-idx/(n-1)))
+	case Variation_Mode == "Alternating"   : Floor_Count_Min + rint((Floor_Count_Max-Floor_Count_Min)*(idx%2))
+	else                                   : rint(rand(Floor_Count_Min-0.49,Floor_Count_Max+0.49))
+
+getFloorHeight(idx) = case idx == 0: Ground_Floor_Height else: Upper_Floor_Height
+
+
+################################################################
+## RULES
+##
+
+
+## Parcel to Footprint ################################
+
+
+@StartRule
+Parcel -->
+	set(material.opacity, Transparency)
+	alignScopeToAxes(y)
+	t(0,Sidewalk_Height_Match,0)
+	set(Lot_Area, geometry.area) # save the original settings.
+	set(Elevation,scope.elevation)	# save the original settings.
+	set(Foundation_Height, scope.sy)
+	report("Construction, Cut/Fill, Cost", envReports.calculateCutAndFillCost(cutVolume, fillVolume))
+	report("Construction, Cut/Fill, Cut Volume (m3)", cutVolume)
+	report("Construction, Cut/Fill, Fill Volume (m3)", fillVolume)
+	report("Parcel, Area (m2)", Lot_Area)
+	report("Site Conditions, Slope (%)", geometry.angle(maxSlope)/90) # FIX: Need way to get average slope, not max. Probably insignificant difference though.
+	# XX 2014.0 fix:  (this is duplicated from the parcel rule. update both if need be) (example of bad coding by Chris)
+	set(Facade_Construction.Display_Textures, Display_Textures)
+	set(Facade_Construction.Display_Thematics, Display_Thematics)  
+	set(Facade_Construction.Solid_Color, Solid_Color)  
+	set(Facade_Construction.Transparency, Transparency)  
+	set(Facade_Construction.Display_Textures, Display_Textures)  
+	set(Facade_Construction.Upper_Floor_Height, Upper_Floor_Height)  
+	set(Facade_Construction.Ground_Floor_Height, Ground_Floor_Height)  
+	set(Facade_Construction.DisableMassDisplay, DisableMassDisplay)  
+	# 
+	set(Green_Space.Display_Textures, Display_Textures)  
+	set(Green_Space.Display_Thematics, Display_Thematics)  
+	set(Green_Space.Solid_Color, Solid_Color)  
+	set(Green_Space.Transparency, Transparency)
+	#
+	set(Zoning.Foundation_Height, Foundation_Height)  
+	set(Zoning.Foundation_Adjustment, Foundation_Adjustment)
+	#
+	set(Facade_Construction.Photovoltaic_Roof.Display_Textures, Display_Textures)
+	set(Facade_Construction.Photovoltaic_Roof.Display_Thematics, Display_Thematics)
+	set(Facade_Construction.Photovoltaic_Roof.Solid_Color, Solid_Color)
+	set(Facade_Construction.Photovoltaic_Roof.Transparency, Transparency) 
+	set(Facade_Construction.Photovoltaic_Roof.Level_of_Detail, Facade_Construction.Level_of_Detail)  
+	#
+	ParcelStep1
+
+
+xx-->
+	set(material.opacity,0.5)
+	translate(rel, world, 0,0.1,0)
+	color(1,0,0)
+
+ParcelStep1 -->
+	case thematicsOn && Display_Thematics != "Usage":
+		color(thematicColor)
+		ParcelStep2
+	else:
+		ParcelStep2
+
+
+ParcelStep2 -->
+	case Zoning.Zoning_Display == "Building":
+		BuildingAndYards
+	case Zoning.Zoning_Display == "Envelope":
+		Zoning.ZoningEnvelope
+	else:
+		BuildingAndYards
+		Zoning.ZoningEnvelope
+
+
+BuildingAndYards -->
+	#t(0,Foundation_Height,0) # FIX: Disabled due to bug. Come back to this later.
+	SetbackStreet
+
+SetbackStreet -->
+	setback(Street_Setback) {street.front: GreenSpace("frontyard") | remainder : SetbackBack}
+
+SetbackBack --> 
+	setback(Back_Setback) {street.back: GreenSpace("border") | remainder : SetbackLeft } 
+
+SetbackLeft -->
+	setback(Side_Setback) {street.left: GreenSpace("border") | remainder : SetbackRight }
+
+SetbackRight -->
+	setback(Side_Setback) {street.right: GreenSpace("border") | remainder : ConstructionArea }
+
+#ConstructionArea2 --> color(0,1,1) X.
+
+/*  
+Yards -->
+	# Do not squash this one as we did Building.
+	setback(Street_Setback) {streetSide: GreenSpace("frontyard") 
+		| remainder : 
+		setback(Back_Setback) {street.back: GreenSpace("border")
+		| remainder : 
+		setback(Side_Setback) {street.side: GreenSpace("border") | remainder : NIL }}}
+*/
+
+
+
+
+ConstructionArea -->
+	s('1,0,'1)
+	ConstructionAreaDispatch 
+
+ConstructionAreaDispatch -->
+	case Layout_Shape == "Along Street":
+		case Layout_Orientation == "Open To Back":
+			setback(mainWingWidth) { street.front : Layout | remainder : GreenSpace}
+		else:
+			setback(mainWingWidth) { noStreetSide : Layout | remainder : GreenSpace } 
+	case Layout_Shape == "Along Front":
+		case Layout_Orientation == "Open To Back":
+			setback(mainWingWidth) { front : Layout | remainder : GreenSpace }
+		else:
+			setback(mainWingWidth) { back : Layout | remainder : GreenSpace }
+	case Layout_Shape == "L-Shape Left":
+		case Layout_Orientation == "Open To Back":
+			shapeO(mainWingWidth,0,0,Wing_Width) { shape : Layout | remainder : GreenSpace } 
+		else:
+			shapeO(0,0,mainWingWidth,Wing_Width) { shape : Layout | remainder : GreenSpace } 
+	case Layout_Shape == "L-Shape Right":
+		case Layout_Orientation == "Open To Back":
+			shapeO(mainWingWidth,Wing_Width,0,0) { shape : Layout | remainder : GreenSpace } 
+		else:
+			shapeO(0,Wing_Width,mainWingWidth,0) { shape : Layout | remainder : GreenSpace } 
+	case Layout_Shape == "U-Shape":
+		case Layout_Orientation == "Open To Back":
+			shapeO(mainWingWidth,Wing_Width,0,Wing_Width) { shape : Layout | remainder : GreenSpace } 
+		else:
+			shapeO(0,Wing_Width,mainWingWidth,Wing_Width) { shape : Layout | remainder : GreenSpace } 
+	else:
+		Layout
+
+Layout -->
+	case offsetDistance > 0 || (Variation_Mode != "None" && Floor_Count_Max != Floor_Count_Min ):
+		split(x){ ~Unit_Width: Unit(split.index,split.total) }* 
+	else:
+		FootprintCheck(0,1)
+	
+Unit(idx,n) -->
+	case n < 2 || offsetDistance <= 0:
+		FootprintCheck(idx,n)
+	case Offset_Mode == "Increasing":
+		split(z){ offsetDistance*(1-idx/(n-1)) : GreenSpace("building") | ~1: FootprintCheck(idx,n) | offsetDistance*idx/(n-1) : GreenSpace("building") }
+	case Offset_Mode == "Decreasing":
+		split(z){ offsetDistance*idx/(n-1) : GreenSpace("building") | ~1: FootprintCheck(idx,n) | offsetDistance*(1-idx/(n-1)) : GreenSpace("building") }
+	case Offset_Mode == "Alternating":
+		split(z){ offsetDistance*(idx%2) : GreenSpace("building") | ~1: FootprintCheck(idx,n) | offsetDistance*((idx+1)%2) : GreenSpace("building") }
+	case Offset_Mode == "Random":
+		40% : split(z){                                            ~1: FootprintCheck(idx,n) | offsetDistance  : GreenSpace("building") }
+		10% : split(z){ offsetDistance/2: GreenSpace("building") | ~1: FootprintCheck(idx,n) | offsetDistance/2: GreenSpace("building") }
+		40% : split(z){ offsetDistance  : GreenSpace("building") | ~1: FootprintCheck(idx,n) }
+		else: FootprintCheck(idx,n)
+	else:
+		FootprintCheck(idx,n)
+
+
+FootprintCheck(idx,n) -->
+	case geometry.isConcave:
+		convexify(3) FootprintSizeCheck(idx,n) 
+	else:
+		FootprintSizeCheck(idx,n)
+
+
+FootprintSizeCheck(idx,n) -->
+	case geometry.nFaces > 1:
+		comp(f){all: alignScopeToAxes(y) FootprintSizeCheck(idx,n) }
+	case scope.sx < 4 || scope.sz < 4:
+		GreenSpace
+	else:
+		Footprint(idx,n)
+
+
+## Footprint to Mass ################################
+
+@StartRule
+Footprint -->
+	case thematicsOn:
+		color(thematicColor)
+		Footprint2014Fix(0,1) # default case
+	else:
+		Footprint2014Fix(0,1) # default case
+
+Footprint2014Fix(idx,n) -->
+	# XX 2014.0 fix:  (this is duplicated from the parcel rule. update both if need be) (example of bad coding by Chris)
+	set(Facade_Construction.Display_Textures, Display_Textures)
+	set(Facade_Construction.Display_Thematics, Display_Thematics)  
+	set(Facade_Construction.Solid_Color, Solid_Color)  
+	set(Facade_Construction.Transparency, Transparency)  
+	set(Facade_Construction.Display_Textures, Display_Textures)  
+	set(Facade_Construction.Upper_Floor_Height, Upper_Floor_Height)  
+	set(Facade_Construction.Ground_Floor_Height, Ground_Floor_Height)  
+	set(Facade_Construction.DisableMassDisplay, DisableMassDisplay)  
+	# 
+	set(Green_Space.Display_Textures, Display_Textures)  
+	set(Green_Space.Display_Thematics, Display_Thematics)  
+	set(Green_Space.Solid_Color, Solid_Color)  
+	set(Green_Space.Transparency, Transparency)
+	#
+	set(Zoning.Foundation_Height, Foundation_Height)  
+	set(Zoning.Foundation_Adjustment, Foundation_Adjustment)
+	#
+	set(Facade_Construction.Photovoltaic_Roof.Display_Textures, Display_Textures)
+	set(Facade_Construction.Photovoltaic_Roof.Display_Thematics, Display_Thematics)
+	set(Facade_Construction.Photovoltaic_Roof.Solid_Color, Solid_Color)
+	set(Facade_Construction.Photovoltaic_Roof.Transparency, Transparency) 
+	set(Facade_Construction.Photovoltaic_Roof.Level_of_Detail, Facade_Construction.Level_of_Detail)  
+	#
+	Footprint(idx,n)
+
+
+
+# This extrudes the footprint shape (for each unit if multiple units) up to the height of the full mass.
+# Incoming parameters idx and n refer to the separate units (rather than floors as seen later in the rule). 
+Footprint(idx,n) -->
+	alignScopeToAxes(y) s('1,0,'1) t(0,Elevation-scope.elevation,0)
+	Foundation
+	t(0, foundationHeightAdjusted, 0)
+	report("Building, Footprint Area (m2)", geometry.area)
+	report("Parcel, Coverage (%)", geometry.area/Lot_Area*100)
+	extrude(getHeight(idx,n)) 
+	Envelope 
+
+
+	
+
+ 
+foundationHeightAdjusted = Foundation_Height + Foundation_Adjustment
+Foundation -->
+	case thematicsOn && Display_Thematics == "Usage":
+		color(Zoning.usageColor(Zoning.usagePerFloor(0)))
+		FoundationStep2
+	else:
+		FoundationStep2
+		
+FoundationStep2 -->
+	extrude(foundationHeightAdjusted)
+	comp(f){side : Facade_Construction.Wall}
+
+
+
+# This takes the mass and splits into floor volumes.
+Envelope -->
+	split(y){   ~Ground_Floor_Height: FloorEnvelope(split.index,split.total) 
+			| { ~Upper_Floor_Height: FloorEnvelope(split.index,split.total) }* }
+
+# This receives individual floors 
+FloorEnvelope(idx,n) -->
+	s('1,0.02,'1) t(0,'-1,0) comp(f){top: FloorArea(idx,n) }
+
+FloorArea(idx,n) -->
+	case Street_Setback_Mode == "None":
+		Floor(idx,n)
+	case Street_Setback_Mode == "2nd Floor" && idx > 1:
+		setback(Street_Setback_Distance){ object.front: NIL | remainder: Floor(idx,n) }		
+	case Street_Setback_Mode == "Top Floor" && idx == n-1:
+		setback(Street_Setback_Distance){ object.front: NIL | remainder: Floor(idx,n) }		
+	case Street_Setback_Mode == "2 Stepbacks" && idx > n*0.8:
+		setback(Street_Setback_Distance){ object.front: NIL | remainder: Floor(idx,n) }		
+	case Street_Setback_Mode == "2 Stepbacks" && idx > n*0.5:
+		setback(Street_Setback_Distance/2){ object.front: NIL | remainder: Floor(idx,n) }		
+	case Street_Setback_Mode == "Increasing":
+		setback(Street_Setback_Distance*idx/(n-1)){ object.front: NIL | remainder: Floor(idx,n) }		
+	case Street_Setback_Mode == "Decreasing":
+		setback(Street_Setback_Distance*(1-idx/(n-1))){ object.front: NIL | remainder: Floor(idx,n) }		
+	case Street_Setback_Mode == "Alternating" && idx%2 == 1:
+		setback(Street_Setback_Distance){ object.front: NIL | remainder: Floor(idx,n) }		
+	case Street_Setback_Mode == "Random":
+		30% : setback(Street_Setback_Distance){ object.front: NIL | remainder: Floor(idx,n) }
+		30% : setback(Street_Setback_Distance){ object.back: NIL | remainder: Floor(idx,n) }
+		else: Floor(idx,n)
+	else:
+		Floor(idx,n)
+		
+Floor(idx,n) -->
+	Floor(idx,n,Zoning.usagePerFloor(idx))
+	
+Floor(idx,n,usage) -->
+	case Display_Thematics == "Usage":
+		color(Zoning.usageColor(usage))
+		FloorStep2(idx,n,usage)
+	else:
+		FloorStep2(idx,n,usage)
+
+FloorStep2(idx,n,usage) -->
+	# Report all things based on floor area here. This is called for each floor.
+	report("Building, Gross Floor Area (m2)", geometry.area)
+	report("Parcel, Floor Area Ratio (Density)", geometry.area/Lot_Area)
+	# FIX: We might want to base this on usage per floor?
+	report("Construction, Building Cost", geometry.area * Building_Performance.Cost_Per_M2)
+
+	report("Construction, Waste (kg)", 
+		geometry.area * Zoning.constructionWastePerUsage(usage) * (1-Building_Performance.Percent_Reduction_Construction_Waste))
+		
+	report("Building Performance Target, Waste, Domestic (kg/yr)", 
+		geometry.area * Zoning.domesticWastePerUsage(usage) * (1-Building_Performance.Percent_Reduction_Domestic_Waste))
+	report("Building Performance Target, Energy, Heating Consumption (kWh/yr)", 
+		geometry.area * Zoning.heatingConsumptionPerUsage(usage) * (1-Building_Performance.Percent_Reduction_Heating_Energy_Consumption))
+	report("Building Performance Target, Energy, Electrical Consumption (kWh/yr)", 
+		geometry.area * Zoning.electricConsumptionPerUsage(usage) * (1-Building_Performance.Percent_Reduction_Electric_Energy_Consumption))
+	# Water:
+	# Note: Percent greywater recycled is a weird calculation, because it would reduce overall consumption, but it comes from that amount. Like a circular reference kind of. Not sure about this.
+	report("Building Performance Target, Water, Consumption (l/yr)", 
+		geometry.area * waterConsumption(usage) * (1-Building_Performance.Percent_Reduction_Water_Consumption))
+	report("Building Performance Target, Water, Produced Greywater (l/yr)", 
+		geometry.area * waterConsumption(usage) * (1-Building_Performance.Percent_Reduction_Water_Consumption) * Zoning.percentGreywaterProducedPerUsage(usage))
+	report("Building Performance Target, Water, Produced Blackwater (l/yr)", 
+		geometry.area * waterConsumption(usage) * (1-Building_Performance.Percent_Reduction_Water_Consumption) * (1 - Zoning.percentGreywaterProducedPerUsage(usage)))
+	report("Building Performance Target, Water, Recycled Greywater (l/yr)", 
+		geometry.area * waterConsumption(usage) * (1-Building_Performance.Percent_Reduction_Water_Consumption) * Zoning.percentGreywaterProducedPerUsage(usage) * Building_Performance.Percent_Greywater_Recycled)
+
+	report("Building Performance Baseline, Waste, Domestic (kg/yr)", 
+		geometry.area * Zoning.domesticWastePerUsage(usage))
+	report("Building Performance Baseline, Energy, Heating Consumption (kWh/yr)", 
+		geometry.area * Zoning.heatingConsumptionPerUsage(usage))
+	report("Building Performance Baseline, Energy, Electrical Consumption (kWh/yr)", 
+		geometry.area * Zoning.electricConsumptionPerUsage(usage))
+	report("Building Performance Baseline, Water, Consumption (l/yr)", 
+		geometry.area * waterConsumption(usage))
+	report("Building Performance Baseline, Water, Produced Greywater (l/yr)", 
+		geometry.area * waterConsumption(usage) * Zoning.percentGreywaterProducedPerUsage(usage))
+	report("Building Performance Baseline, Water, Produced Blackwater (l/yr)", 
+		geometry.area * waterConsumption(usage) * (1 - Zoning.percentGreywaterProducedPerUsage(usage)))
+
+	StoryEdgeDisplay
+	extrude(getFloorHeight(idx))
+	FloorMassFacades(idx,n)
+
+waterConsumption(usage) = Zoning.waterConsumptionPerUsage(usage) * (1-Building_Performance.Percent_Reduction_Water_Consumption)
+
+StoryEdgeDisplay -->
+	case Story_Edge_Display :
+		case coloringOn:
+			color(Story_Edge_Color) 
+			offset(Story_Edge_Size, border)
+			extrude(-Story_Edge_Size) X.
+		else:
+			offset(Story_Edge_Size, border)
+			extrude(-Story_Edge_Size) X.
+	else: NIL
+
+	
+
+## Subpart Generation ################################
+
+FloorMassFacades(idx,n) -->
+	Facade_Construction.FloorMass(idx,n)
+	
+
+
+
+GreenSpace -->
+	GreenSpace("main")
+
+
+GreenSpace(id) -->
+	report("Parcel, Green Space Area (m2)",geometry.area)
+	Green_Space.GreenSpace(id, thematicColor)
+
+
+## PRE-CONFIGURED STYLES ################################
+
+style LShaped
+attr Floor_Count_Min = 7.0
+attr Floor_Count_Max = 9.0
+attr Variation_Mode = "Increasing"
+attr Street_Setback = 2.0
+attr Street_Setback_Distance = 3.0
+attr Layout_Shape = "L-Shape Left"
+attr Wing_Width = 20.0
+attr Unit_Width = 30.0
+attr Offset_Mode = "Decreasing"
+attr Offset_Distance = 3.0
+
+style Shifted
+attr Floor_Count_Min = 7.0
+attr Street_Setback = 2.0
+attr Street_Setback_Mode = "Top Floor"
+attr Street_Setback_Distance = 3.0
+attr Wing_Width = 20.0
+attr Unit_Width = 20.0
+attr Offset_Mode = "Increasing"
+attr Offset_Distance = 9.0
+
+style Terrasse
+attr Layout_Shape = "L-Shape Left"			
+attr Wing_Width = 25
+attr Unit_Width = 30
+attr Offset_Mode = "Random"
+attr Offset_Distance = 5
+attr Street_Setback_Mode = "Increasing"
+attr Street_Setback_Distance = 10
+
+style Lego
+attr Floor_Count_Min = 5.0
+attr Floor_Count_Max = 7.0
+attr Variation_Mode = "Random"
+attr Street_Setback = 2.0
+attr Street_Setback_Mode = "Random"
+attr Street_Setback_Distance = 3.0
+attr Layout_Shape = "Along Front"
+attr Wing_Width = 20.0
+attr Offset_Mode = "Random"
+attr Offset_Distance = 3.0
+
+style HighRise
+attr Floor_Count_Min = 9.0
+attr Floor_Count_Max = 41.0
+attr Variation_Mode = "Decreasing"
+attr Street_Setback = 2.0
+attr Street_Setback_Mode = "2 Stepbacks"
+attr Street_Setback_Distance = 6.0
+attr Layout_Shape = "L-Shape Left"
+attr Wing_Width = 16.0
+attr Unit_Width = 23.0
+attr Offset_Mode = "Random"
+attr Offset_Distance = 3.0
+

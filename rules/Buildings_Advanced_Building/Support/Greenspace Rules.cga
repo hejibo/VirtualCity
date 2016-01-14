@@ -1,0 +1,389 @@
+/**
+ * File:    Greenspace Rules.cga
+ * Created: 25 Apr 2013 23:59:10 GMT
+ * Author:  Esri
+ */
+
+version "2015.0"
+
+
+const assetDirectory = "Landscape_Design_Greenspace/"
+peopleAsset = fileRandom("3DModels_from_LowPolygon3D.com/LowPolygon3D.com_People/*.obj")
+
+
+# ----------------------------------------
+# Imported files and reporting 
+# ----------------------------------------
+import Tree:"/ESRI.lib/rules/Plants/Plant_Loader.cga"
+#import tree : "3D_City_Design_Rules/Support/Tree.cga" (Display_Textures = Display_Textures, Display_Thematics = Display_Thematics, Solid_Color = Solid_Color, Transparency = Transparency)
+#import Tree : "3D_City_Design_Rules/Support/Plant_Loader_with_LumenRT_Models.cga" #(Name = Tree_Type_Adjusted, Height = Tree_Height, Radius)
+import envReports: "Environment Reporting.cga"
+import envSettings: "Environment Settings.cga"
+
+@Hidden
+attr Display_Textures = true
+@Hidden
+attr Display_Thematics = "Thematics Off"
+@Hidden
+attr Solid_Color = "#FFFFFF"
+@Hidden
+attr Transparency = 1
+@Hidden
+attr Green_Space_Type = "Formal"
+@Hidden
+attr Front_Yard_Type = "Sidewalk"
+@Hidden
+attr Front_Hardscape_Texture = "Concrete Bright"
+@Hidden
+attr Front_Hardscape_Scale = 1
+@Hidden
+attr Front_Hardscape_Rotation = 0
+@Hidden
+attr Unit_Width = 15
+@Hidden
+attr Rotation = 0
+@Hidden
+attr Pervious_Hardscape = false
+@Hidden
+attr Pathway_Type = "Paver Grey Ashlar"
+@Hidden
+attr Pathway_Scale = 2
+@Hidden
+attr People_Percentage = 20
+@Hidden
+attr Grass_Type = "Standard Grass"
+@Hidden
+attr Grass_Scale = 1
+@Hidden
+attr Hedge_Type = "Hedge Standard"
+@Hidden
+attr Hedge_Percentage = 70
+@Hidden
+attr Tree_Percentage = 50
+@Hidden
+attr Max_Trees_Per_Acre = 300
+#@Hidden
+#attr Tree_Level_of_Detail = "low"
+#@Hidden
+#attr Tree_Height = 15
+@Hidden
+attr Tree_Type = "Random"
+@Hidden
+attr Tree_Placement = "Uniform"
+@Hidden
+attr Tree_Border_Thickness = 5
+@Hidden
+attr cutVolume = 0
+@Hidden
+attr fillVolume = 0
+
+
+
+#####################################################
+# DISPLAY OPTIONS
+
+
+texturingOn = Display_Textures 	# Shorthand.
+thematicsOn = Display_Thematics != "Thematics Off"
+coloringOn = !thematicsOn	# Shorthand.
+
+@Hidden 
+attr thematicColor = "#ffffff"
+
+TextureSwitch -->
+	case texturingOn: X.
+	else: deleteUV(0) X.
+	
+peakRunoffDisplayOn = Display_Thematics == "Peak Runoff/Permeability"
+
+
+
+################################################################
+## RULES
+##
+
+#######################################################
+
+	
+
+@StartRule
+GreenSpace -->
+	GreenSpace("main")
+
+
+GreenSpace(id, _thematicColor) -->
+	set(thematicColor, _thematicColor)
+	color(thematicColor)
+	GreenSpace(id)
+
+
+# Dispatcher ###################
+	
+# Note: "id" argument is kept here for compatibility with "Building Construction" rule. 
+GreenSpace(id) -->
+	set(material.opacity,Transparency)
+	report("Construction, Cut/Fill, Cost", envReports.calculateCutAndFillCost(cutVolume, fillVolume))
+	report("Construction, Cut/Fill, Cut Volume (m3)", cutVolume)
+	report("Construction, Cut/Fill, Fill Volume (m3)", fillVolume)
+	rotateScope(0,Rotation,0)
+	GreenSpaceStep2(id)
+
+GreenSpaceStep2(id) -->
+	case id == "building": GreenspaceType
+	case id == "frontyard"  : FrontYard
+	case id == "border"  : Lawn
+	else                 : GreenspaceType
+	
+
+GreenspaceType -->
+	case Green_Space_Type == "Formal" : OpenSpace
+	else : NaturalSpace 
+
+FrontYard -->
+	case Front_Yard_Type == "Sidewalk": 
+		Sidewalk
+	case Front_Yard_Type == "Lawn":
+		Lawn
+	case Front_Yard_Type == "Formal":
+		OpenSpace
+	case Front_Yard_Type == "Natural":
+		NaturalSpace
+	else:
+		Lawn
+
+		
+
+
+# Natural Park ------------------------------------------
+
+NaturalSpace -->
+	Park
+	NaturalSpaceTrees
+
+NaturalSpaceTrees -->
+	case Tree_Placement == "O Shape" :
+		setback(Tree_Border_Thickness) {all = ScatterTrees}   
+	case Tree_Placement == "U Shape" : 
+		#Note: Sides only works with shapes that have street orientation
+		setback(Tree_Border_Thickness) {street.front: NIL | street.side : ScatterTrees}
+	else : 
+		ScatterTrees
+
+
+ScatterTrees-->
+ 	scatter(surface, Max_Trees_Per_Acre * (geometry.area/4047) * Tree_Percentage/100, uniform) { Tree1 } 
+	NIL
+
+Park -->
+	envReports.ReportPeakDischarge(envReports.materialLawn)
+	report("Construction, Grass Area (m2)", geometry.area)
+	report("Construction, Grass Cost", geometry.area * envSettings.GrassSurfaceCostAverage)
+	ParkTexture
+
+
+ParkTexture -->
+	scatter(surface,People_Percentage * 0.0025 * geometry.area,uniform) { Human(rand(360)) }
+	ParkTextureStep2
+
+ParkTextureStep2 -->
+	case texturingOn:
+		setupProjection(0, scope.xz, scope.sx, scope.sz)
+		projectUV(0)
+		offsetUV(0,rand(1), rand(1))
+		texture(assetDirectory + "Grass/Park.jpg")
+		ParkRainfall		
+	else:
+		ParkRainfall
+
+ParkRainfall -->
+	case peakRunoffDisplayOn:
+		color(envReports.colorByPerviousMaterial(envReports.materialLawn)) X.
+	else: X. 
+
+
+	
+# Formal Park (OpenSpace from Philly rules) ---------------
+
+OpenSpace -->
+	split(x){ { ~Unit_Width: OpenSpaceSub | 2: Hardscape }* 
+			|   ~Unit_Width: OpenSpaceSub }
+
+OpenSpaceSub -->
+	50% : split(z){ (rand(5,30)): OpenSpaceSubSub }*
+	else: split(z){ 2: Hardscape | (rand(5,30)): OpenSpaceSubSub }*
+	
+randHedge1 = 70%: 0.6 else: 0	
+randHedge2 = 20%: 0.6 else: 0	
+
+OpenSpaceSubSub -->
+	case p(Hedge_Percentage/100) && scope.sx > 4 && scope.sz > 4:
+		Lawn
+		offset(-1,inside)
+		shapeO(randHedge1,randHedge1,randHedge2,randHedge1)
+				{ shape: 
+					Hedge(40%: 1 else: 1.6)  
+				| remainder: 
+					NaturalSpaceTrees
+					scatter(surface,People_Percentage * 0.0025 * geometry.area,uniform) { Human(rand(360)) } 
+				}
+	else:
+		NaturalSpaceTrees
+		Lawn
+
+ 
+ 
+
+
+# Plants ###################
+
+Tree1 -->
+	report("Construction, Tree Cost", envSettings.TreeCostAverage)
+	set(Tree.Name, Tree_Type_Adjusted)
+	#set(Tree.Height, Tree_Height)
+	set(Tree.Transparency, 1 - Transparency)
+	Tree.Generate()
+
+Tree_Type_Adjusted = 
+	case Tree_Type == "Random": randomTreeType
+	else: Tree_Type
+
+randomTreeType = 
+	20%: "Tree of Heaven"
+	20%: "White Ash"
+	20%: "Common Hackberry"
+	20%: "Sweetgum"
+	else:"Sassafras"
+
+
+Hedge(h) -->
+	extrude(world.y,h)
+	comp(f){ bottom: NIL | all: HedgeStep2}	
+	
+HedgeStep2 -->
+	case texturingOn:	
+		setupProjection(0,scope.xy,~5,5) projectUV(0)
+		texture(assetDirectory + "Hedges/" + Hedge_Type + ".jpg")
+		HedgeStep3 
+	else:
+		HedgeStep3
+		
+HedgeStep3 -->
+	case peakRunoffDisplayOn:
+		color(envReports.colorByPerviousMaterial(envReports.materialLawn)) X.
+	else: X.
+
+		
+# Surfaces ###################
+	
+Lawn -->
+	case texturingOn:	
+		case Grass_Type == "Random" :
+			setupProjection(0, scope.xz, 15*Grass_Scale, 15*Grass_Scale) projectUV(0)
+			texture(fileRandom(assetDirectory + "Grass/Random/*.jpg"))
+			LawnStep2
+		else :
+			setupProjection(0, scope.xz, 5*Grass_Scale, 5*Grass_Scale) projectUV(0)
+			texture(assetDirectory + "Grass/" + Grass_Type + ".jpg")
+			LawnStep2
+	else:
+		LawnStep2	
+
+LawnStep2 -->
+	envReports.ReportPeakDischarge(envReports.materialLawn)
+	report("Construction, Grass Area (m2)", geometry.area)
+	report("Construction, Grass Cost", geometry.area * envSettings.GrassSurfaceCostAverage)
+	LawnStep3
+
+LawnStep3 -->
+	case peakRunoffDisplayOn:
+		color(envReports.colorByPerviousMaterial(envReports.materialLawn)) X.
+	else: X.
+	
+	
+const materialHardscape = case Pervious_Hardscape : envReports.materialPerviousPavement else : envReports.materialPavementAndRooftops
+
+Hardscape -->
+	alignScopeToGeometry(yUp,0,longest)
+	People
+	envReports.ReportPeakDischarge(materialHardscape)
+	report("Construction, Hardscape Area (m2)", geometry.area)
+	report("Construction, Hardscape Cost", geometry.area * envSettings.HardscapePaverCost)
+	HardscapeStep2
+
+HardscapeStep2 -->
+	case texturingOn:
+		setupProjection(0, scope.xz, 5*Pathway_Scale, 5*Pathway_Scale) projectUV(0)
+		texture(assetDirectory + "BlocksPavers/" + Pathway_Type + ".jpg")
+		HardscapeStep3 
+	else: HardscapeStep3 
+
+HardscapeStep3 -->
+	case peakRunoffDisplayOn:
+		color(envReports.colorByPerviousMaterial(materialHardscape)) X.
+	else: X. 
+
+
+Sidewalk -->
+	envReports.ReportPeakDischarge(envReports.materialPavementAndRooftops)
+	report("Construction, Hardscape Area (m2)", geometry.area)
+	report("Construction, Hardscape Cost", geometry.area * envSettings.HardscapePaverCost)
+	SidewalkStep2
+	
+SidewalkStep2 -->
+	case texturingOn:
+		setupProjection(0,scope.xz,~12,~9) projectUV(0)
+		rotateUV(0,Front_Hardscape_Rotation)
+		scaleUV(0,Front_Hardscape_Scale,Front_Hardscape_Scale)
+		texture(assetDirectory + "Sidewalks/" + Front_Hardscape_Texture + ".jpg")
+		SidewalkStep3
+	else:
+		SidewalkStep3
+
+SidewalkStep3 -->
+	case peakRunoffDisplayOn:
+		# FIX: Sidewalks in the streets rule have pervious switch, yet these don't...
+		color(envReports.colorByPerviousMaterial(envReports.materialPavementAndRooftops)) X.
+	else: X. 
+
+# -------------------------------------------
+# People
+# 
+# Sample assets provided by lowpolygon3d.com
+# 
+# More assets with high-res textures can be 
+# purchased at http://www.lowpolygon3d.com.
+# 
+# -------------------------------------------
+
+dirHuman = 50%: 90 else: -90
+
+People -->
+	case scope.sx > 1000:
+		split(x){ '0.5: People | '0.5: People }
+	case People_Percentage > 0:
+		scatter(surface, People_Percentage * 0.005 * geometry.area,uniform) { Human } 
+	else:
+		NIL
+	
+Human -->
+	Human(0)
+	
+Human(rotation) -->
+	case (scope.sx < 2 && p(People_Percentage/100*0.3))	
+	|| (scope.sx >= 2 && p(People_Percentage/100)):
+		HumanInsert(rotation)
+	else:
+		NIL
+
+HumanInsert(rotation) -->
+	alignScopeToAxes(y)
+	t(0,0,'rand(0.1,0.6))
+	s(0,rand(1.7,1.9),0) r(0,dirHuman + rotation,0) 
+	i(peopleAsset)
+	TextureSwitch
+
+
+DisableCGAWarnings -->
+	# This is rule exists only to stop the CGA warnings from showing; it has no use, otherwise.
+	# The below lines are just calling all of the "unused rules" so they do not flag as unused.
+	GreenSpace("", "")

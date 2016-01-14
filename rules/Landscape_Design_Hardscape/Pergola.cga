@@ -1,0 +1,136 @@
+/**
+ * File:    Pergola.cga
+ * Created: 7 Apr 2014 19:52:42 GMT
+ * Author:  chri7180
+ */
+
+version "2015.0"
+
+attr Start_Height = 2.1
+
+
+attr Color = "#ba8d7b"
+
+attr Layer_1_Spacing = 2.4
+attr Layer_1_Width = 0.09
+attr Layer_1_Height = 0.25
+attr Layer_1_End_Buffer = 0.1
+Layer_1_Gap = Layer_1_Spacing - Layer_1_Width
+
+attr Layer_2_Spacing = 0.4
+attr Layer_2_Width = 0.03
+attr Layer_2_Height = 0.15
+attr Layer_2_End_Buffer = 0.1
+Layer_2_Gap = Layer_2_Spacing - Layer_2_Width
+
+attr Layer_3_Spacing = 0.2
+attr Layer_3_Width = 0.02
+attr Layer_3_Height = 0.1
+attr Layer_3_End_Buffer = (Layer_2_End_Buffer / 2) 
+Layer_3_Gap = Layer_3_Spacing - Layer_3_Width
+
+_rotateScope = scope.sz > scope.sx
+
+
+@Hidden
+attr Layer_1_Use_Only_Two_Members = false
+
+@StartRule
+Arbor -->
+	color(Color)
+	alignScopeToAxes(y)
+	s('1,0,'1)
+	FixRotation
+
+FixRotation -->
+	case _rotateScope:
+		rotateScope(0,90,0)
+		ArborFootprint
+	else:
+		ArborFootprint
+
+ArborFootprint -->
+	case Layer_1_Use_Only_Two_Members:
+		set(Layer_1_End_Buffer, 0)
+		set(Layer_1_Spacing, scope.sx - (2*Layer_1_Width))
+		ArborFootprintStep2
+	else:
+		ArborFootprintStep2
+		
+ArborFootprintStep2 -->
+	Layer1
+	Layer2
+	Layer3
+
+Layer1 -->
+	translate(rel, world, 0, Start_Height, 0)
+	split(x) {
+		Layer_1_End_Buffer: NIL |
+		(_layer1Leftover / 2): NIL |	 
+		{Layer_1_Width: Wood1 | Layer_1_Gap: NIL }* |
+		Layer_1_Width: Wood1 |
+		(_layer1Leftover / 2): NIL |
+		Layer_1_End_Buffer: NIL
+	}
+
+
+
+_layer1MinusBuffers = scope.sx - (2 * Layer_1_End_Buffer)
+_layer1Leftover = _layer1MinusBuffers - (_layer1Bays * Layer_1_Spacing) - Layer_1_Width
+_layer1Bays = floor(_layer1MinusBuffers / Layer_1_Spacing) 
+
+
+	
+Layer2 -->
+	rotateScope(0,90,0)
+	translate(rel, world, 0, Start_Height + Layer_1_Height, 0)
+	split(x) {
+		Layer_2_End_Buffer: NIL |
+		(_layer2Leftover / 2): NIL |	 
+		{Layer_2_Width: Wood2 | Layer_2_Gap: NIL }* |
+		Layer_2_Width: Wood2 |
+		(_layer2Leftover / 2): NIL |
+		Layer_2_End_Buffer: NIL
+	}
+
+
+_layer2MinusBuffers = scope.sx - (2 * Layer_2_End_Buffer)
+_layer2Leftover = _layer2MinusBuffers - (_layer2Bays * Layer_2_Spacing) - Layer_2_Width
+_layer2Bays = floor(_layer2MinusBuffers / Layer_2_Spacing) 
+
+
+Layer3 -->
+	translate(rel, world, 0, Start_Height + Layer_1_Height + Layer_2_Height, 0)
+	split(x) {
+		Layer_3_End_Buffer: NIL |
+		(_layer3Leftover / 2): NIL |	 
+		{Layer_3_Width: Wood3 | Layer_3_Gap: NIL }* |
+		Layer_3_Width: Wood3 |
+		(_layer3Leftover / 2): NIL |
+		Layer_3_End_Buffer: NIL
+	}
+	
+_layer3MinusBuffers = scope.sx - (2 * Layer_3_End_Buffer)
+_layer3Leftover = _layer3MinusBuffers - (_layer3Bays * Layer_3_Spacing) - Layer_3_Width
+_layer3Bays = floor(_layer3MinusBuffers / Layer_3_Spacing) 
+
+
+
+
+Wood1 --> extrude(Layer_1_Height) comp(f) {all: AddDirtMap}
+Wood2 --> extrude(Layer_2_Height) comp(f) {all: AddDirtMap}
+Wood3 --> extrude(Layer_3_Height) comp(f) {all: AddDirtMap}
+	
+###################
+	
+dirtmapTexture = fileRandom("assets/SoCal/DirtMap/Dirt*.jpg")
+	
+AddDirtMap -->
+	alignScopeToGeometry(yUp, any, world.lowest)
+	rotateScope(0,rand(360),0)
+	setupProjection(2,scope.xz,'1,'1)
+	projectUV(2)
+	set(material.dirtmap, dirtmapTexture)	
+
+
+	

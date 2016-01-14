@@ -1,0 +1,65 @@
+/**
+ * File:    Zoning Settings.cga
+ * Created: 6 May 2013 20:33:54 GMT
+ * Author:  Esri
+ */
+
+version "2015.0"
+
+#---------------------------------------------------------------
+# USER SETTINGS - update these numbers to customize usage stats.
+#---------------------------------------------------------------
+
+# ZONE THEMATIC COLORS
+
+const Zone_Color_Residential = "#FFFF00"
+const Zone_Color_Commercial = "#FF0000"
+const Zone_Color_Office = "#0000FF"
+const Zone_Color_Parking = "#BEBEBE"
+const Zone_Color_Other = "#FFFFFF"
+const Zone_Color_Green_Space = "#009B00"
+const Zone_Color_None = "#FFFFFF"
+
+
+# PERFORMANCE SPECIFICATION PER USAGE
+# Note: The values in this settings file are for demonstration only - set them to values you find more accurate.
+
+# RESIDENTIAL SPECIFICATION
+const Residential_Water_Consumption_Annual__L_m2 = 5000 # l/m2
+const Residential_Water_Percent_Greywater_Produced = 0.7 # %
+const Residential_Electricity_Consumption_Annual__kWh_m2 = 200 # kWh/m2
+const Residential_Heating_Consumption_Annual__kWh_m2 = 200 # kWh/m2
+const Residential_Domestic_Waste_Annual__kg_m2 = 30 # kg/m2
+const Residential_Construction_Waste_Avg__kg_m2 = 15 # kg/m2
+
+# COMMERCIAL SPECIFICATION
+const Commercial_Water_Consumption_Annual__L_m2 = 6000 # l/m2
+const Commercial_Water_Percent_Greywater_Produced = 0.7 # %
+const Commercial_Electricity_Consumption_Annual__kWh_m2 = 800 # kWh/m2
+const Commercial_Heating_Consumption_Annual__kWh_m2 = 300 # kWh/m2
+const Commercial_Domestic_Waste_Annual__kg_m2 = 50 # kg/m2
+const Commercial_Construction_Waste_Avg__kg_m2 = 15 # kg/m2
+
+# OFFICE SPECIFICATION
+const Office_Water_Consumption_Annual__L_m2 = 6000 # l/m2
+const Office_Water_Percent_Greywater_Produced = 0.5 # %
+const Office_Electricity_Consumption_Annual__kWh_m2 = 400 # kWh/m2
+const Office_Heating_Consumption_Annual__kWh_m2 = 400 # kWh/m2
+const Office_Domestic_Waste_Annual__kg_m2 = 80 # kg/m2
+const Office_Construction_Waste_Avg__kg_m2 = 15 # kg/m2
+
+# PARKING SPECIFICATION
+const Parking_Water_Consumption_Annual__L_m2 = 0 # l/m2
+const Parking_Water_Percent_Greywater_Produced = 0.7 # %
+const Parking_Electricity_Consumption_Annual__kWh_m2 = 400 # kWh/m2
+const Parking_Heating_Consumption_Annual__kWh_m2 = 0 # kWh/m2
+const Parking_Domestic_Waste_Annual__kg_m2 = 0 # kg/m2
+const Parking_Construction_Waste_Avg__kg_m2 = 15 # kg/m2
+
+# OTHER SPECIFICATION
+const Other_Water_Consumption_Annual__L_m2 = 6000 # l/m2
+const Other_Water_Percent_Greywater_Produced = 0.7 # %
+const Other_Electricity_Consumption_Annual__kWh_m2 = 400 # kWh/m2
+const Other_Heating_Consumption_Annual__kWh_m2 = 400 # kWh/m2
+const Other_Domestic_Waste_Annual__kg_m2 = 10 # kg/m2
+const Other_Construction_Waste_Avg__kg_m2 = 15 # kg/m2

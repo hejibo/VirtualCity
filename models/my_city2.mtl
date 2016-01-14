@@ -1,0 +1,44 @@
+newmtl CityEngineMaterial_2
+illum 3
+Ka 0 0 0
+Kd 0.843137 0.843137 0.843137
+Ks 0 0 0
+Ns 0
+d 1
+Tf 1.0 1.0 1.0
+Ni 1.0
+map_Kd lanes_4_stripes_white_14x14m.jpg
+
+newmtl CityEngineMaterial_3
+illum 3
+Ka 0 0 0
+Kd 0.843137 0.843137 0.843137
+Ks 0 0 0
+Ns 0
+d 1
+Tf 1.0 1.0 1.0
+Ni 1.0
+map_Kd lanes_4_stop_strip_14x14m.jpg
+
+newmtl CityEngineMaterial_1
+illum 3
+Ka 0 0 0
+Kd 0.843137 0.843137 0.843137
+Ks 0 0 0
+Ns 0
+d 1
+Tf 1.0 1.0 1.0
+Ni 1.0
+map_Kd crosswalk_continental_white.jpg
+
+newmtl CityEngineMaterial
+illum 3
+Ka 0 0 0
+Kd 0.843137 0.843137 0.843137
+Ks 0 0 0
+Ns 0
+d 1
+Tf 1.0 1.0 1.0
+Ni 1.0
+map_Kd asphalt_14x14m.jpg
+

@@ -1,0 +1,71 @@
+/**
+ * File:    Building Performance.cga
+ * Created: 10 May 2013 20:02:51 GMT
+ * Author:  Esri
+ */
+
+version "2015.0"
+
+
+@Group ("TARGET ECO-CRITERIA",1) @Order(1) @Range(0,1)
+attr Percent_Reduction_Water_Consumption = 0
+
+@Group ("TARGET ECO-CRITERIA") @Order(4) @Range(0,1)
+attr Percent_Reduction_Electric_Energy_Consumption = 0
+
+@Group ("TARGET ECO-CRITERIA") @Order(5) @Range(0,1)
+attr Percent_Reduction_Heating_Energy_Consumption = 0
+
+@Group ("TARGET ECO-CRITERIA") @Order(7) @Range(0,1)
+attr Percent_Reduction_Domestic_Waste = 0
+
+@Group ("TARGET ECO-CRITERIA") @Order(8) @Range(0,1)
+attr Percent_Reduction_Construction_Waste = 0
+
+@Group ("TARGET ECO-CRITERIA") @Order(10) @Range(0,1)
+attr Percent_Greywater_Recycled = 0
+
+
+@Group("BUILDING COST ESTIMATION",2) @Order(0)
+attr Cost_Per_M2 = 1400
+
+
+
+style LEED_Certified
+attr Percent_Reduction_Water_Consumption = 0.3
+attr Percent_Reduction_Electric_Energy_Consumption = 0.3
+attr Percent_Reduction_Heating_Energy_Consumption = 0.3
+attr Percent_Reduction_Domestic_Waste = 0.3
+attr Percent_Reduction_Construction_Waste = 0.3
+attr Percent_Greywater_Recycled = 0.3
+attr Cost_Per_M2 = 1600.0
+
+
+style LEED_Silver
+attr Percent_Reduction_Water_Consumption = 0.4
+attr Percent_Reduction_Electric_Energy_Consumption = 0.4
+attr Percent_Reduction_Heating_Energy_Consumption = 0.4
+attr Percent_Reduction_Domestic_Waste = 0.4
+attr Percent_Reduction_Construction_Waste = 0.4
+attr Percent_Greywater_Recycled = 0.4
+attr Cost_Per_M2 = 1800.0
+
+
+style LEED_Gold
+attr Percent_Reduction_Water_Consumption = 0.5
+attr Percent_Reduction_Electric_Energy_Consumption = 0.5
+attr Percent_Reduction_Heating_Energy_Consumption = 0.5
+attr Percent_Reduction_Domestic_Waste = 0.5
+attr Percent_Reduction_Construction_Waste = 0.5
+attr Percent_Greywater_Recycled = 0.5
+attr Cost_Per_M2 = 2000.0
+
+
+style LEED_Platinum
+attr Percent_Reduction_Water_Consumption = 0.7
+attr Percent_Reduction_Electric_Energy_Consumption = 0.7
+attr Percent_Reduction_Heating_Energy_Consumption = 0.7
+attr Percent_Reduction_Domestic_Waste = 0.7
+attr Percent_Reduction_Construction_Waste = 0.7
+attr Percent_Greywater_Recycled = 0.7
+attr Cost_Per_M2 = 2500.0

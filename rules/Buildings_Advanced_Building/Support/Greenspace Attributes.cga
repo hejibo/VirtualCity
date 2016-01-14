@@ -1,0 +1,158 @@
+/**
+ * File:    Greenspace Attributes.cga
+ * Created: 26 Apr 2013 00:16:50 GMT
+ * Author:  Esri
+ */
+
+version "2015.0"
+
+################################################################
+## GREENSPACE ATTRIBUTES
+##
+
+import Greenspace_Rules : "Greenspace Rules.cga" #(Display_Textures = Display_Textures, Display_Thematics = Display_Thematics, Solid_Color = Solid_Color, Transparency = Transparency, Green_Space_Type = Green_Space_Type, Front_Yard_Type = Front_Yard_Type, Front_Hardscape_Texture = Front_Hardscape_Texture, Front_Hardscape_Scale = Front_Hardscape_Scale, Front_Hardscape_Rotation = Front_Hardscape_Rotation, Unit_Width = Unit_Width, Rotation = Rotation, Pervious_Hardscape = Pervious_Hardscape, Pathway_Type = Pathway_Type, Pathway_Scale = Pathway_Scale, People_Percentage = People_Percentage, Grass_Type = Grass_Type, Grass_Scale = Grass_Scale, Hedge_Type = Hedge_Type, Hedge_Percentage = Hedge_Percentage, Tree_Percentage = Tree_Percentage, Max_Trees_Per_Acre = Max_Trees_Per_Acre, Tree_Height = Tree_Height, Tree_Type = Tree_Type, cutVolume = cutVolume, fillVolume = fillVolume)
+
+################################################
+# DISPLAY OPTIONS
+
+@Hidden
+attr Display_Textures = true
+@Hidden
+attr Display_Thematics = "Thematics Off" 
+@Hidden
+attr Solid_Color = "#FFFFFF"
+@Hidden
+attr Transparency = 1
+
+
+
+
+@Group("MODEL OPTIONS",0) @Order(1)
+@Range("Formal","Natural")
+attr Green_Space_Type = "Formal"
+ 
+# Pathways --------
+@Group("FRONT YARD",1) @Order(1)
+@Range("Sidewalk","Lawn","Formal","Natural")
+attr Front_Yard_Type = "Sidewalk"
+
+@Group("FRONT YARD") @Order(2)
+@Range ("Concrete Bright", "Concrete Bright White", "Concrete Aggregate", "Concrete Clean Dark", "Concrete Clean Light", "Concrete Composite", "Concrete Horizontal Lines", "Concrete Old", "Concrete Rough Dark", "Concrete Rough Light", "Concrete Rough Scratched", "Concrete Square Tiles", "Brick Brown No Mortar Rough Running Bond", "Brick Brown No Mortar Running Bond", "Brick Brown Running Bond", "Brick Brown Stack Bond", "Brick Grey Running Bond", "Brick Red High Contrast Running Bond", "Brick Red No Mortar Running Bond", "Brick Red Recessed Mortar Running Bond", "Brick Red Running Bond", "Brick Red Stack Bond", "Brick Red Purple Running Bond", "Brick Varied Brown Running Bond", "Brick White Dirty Running Bond", "Brick White Painted Running Bond", "Brick White Rough Running Bond", "Cement Block Dark Grey Running Bond", "Cement Block Grey Running Bond", "Cement Block Grey Specks Running Bond", "Cement Block Light Running Bond", "Cement Block Square Grey Stack Bond", "Paver Grey Ashlar")
+attr Front_Hardscape_Texture = "Concrete Bright"
+
+@Group("FRONT YARD") @Order(3)
+@Range (0.1,10)
+attr Front_Hardscape_Scale = 1
+
+@Group("FRONT YARD") @Order(4)
+@Range (0,360)
+attr Front_Hardscape_Rotation = 0
+
+# Pathways --------
+
+@Group("PATHWAYS",1) @Order(1) @Range(10,50)
+attr Unit_Width = 15
+
+@Group("PATHWAYS") @Order(2) @Range(0,180)
+attr Rotation = 0
+
+@Group("PATHWAYS") @Order(3)
+attr Pervious_Hardscape = false
+
+@Group("PATHWAYS") @Order(4)
+@Range ("Brick Brown No Mortar Rough Running Bond", "Brick Brown No Mortar Running Bond", "Brick Brown Running Bond", "Brick Brown Stack Bond", "Brick Grey Running Bond", "Brick Red High Contrast Running Bond", "Brick Red No Mortar Running Bond", "Brick Red Recessed Mortar Running Bond", "Brick Red Running Bond", "Brick Red Stack Bond", "Brick Red Purple Running Bond", "Brick Varied Brown Running Bond", "Brick White Dirty Running Bond", "Brick White Painted Running Bond", "Brick White Rough Running Bond", "Cement Block Dark Grey Running Bond", "Cement Block Grey Running Bond", "Cement Block Grey Specks Running Bond", "Cement Block Light Running Bond", "Cement Block Square Grey Stack Bond", "Paver ADA", "Paver Brick Red Basket Weave", "Paver Brick Red Herringbone", "Paver Brown Octagon Tile", "Paver Grey Ashlar", "Paver Grey Herringbone", "Paver Grey Hexagon", "Paver Grey Square Stack Bond", "Paver Grey Variable Running Bond", "Paver Stone Varied") @Order(2)
+attr Pathway_Type = "Paver Grey Ashlar"
+
+@Group("PATHWAYS") @Order(5) 
+@Range (.5, 10) 
+attr Pathway_Scale = 2
+
+@Group("PATHWAYS") @Order(6) @Range(0,100)
+attr People_Percentage = 20
+
+# Vegetation ----------
+
+@Group("VEGETATION", 2) @Order(1)
+@Range ("Random", "Standard Grass", "Park", "Bermuda 1", "Bermuda 2", "Bermuda Dark", "Bluegrass 1", "Bluegrass 2", "Grass Short", "Grass Thick", "St Augustine 1", "St Augustine 2", "Light Rye") @Order(2)
+attr Grass_Type = "Random"
+
+@Group("VEGETATION") @Order(2)
+@Range (0.5, 20)
+attr Grass_Scale = 1
+
+@Group("VEGETATION") @Order(3)
+@Range ("Hedge Standard", "Hedge Standard Dense", "Hedge Boxwood", "Hedge Cyprus", "Hedge Pine") @Order(2)
+attr Hedge_Type = "Hedge Standard"
+
+@Group("VEGETATION") @Order(4)
+@Range(0,100) 
+attr Hedge_Percentage = 70
+
+@Group("VEGETATION",3) @Order(5) @Range(0,100)
+attr Tree_Percentage = 5
+
+@Group("VEGETATION",3) @Order(6) @Range(1,1000)
+attr Max_Trees_Per_Acre = 200
+
+#@Group("VEGETATION") @Order(8) @Range(5,25)
+#attr Tree_Height = 0 
+
+#@Group("VEGETATION") @Order(9)
+#@Range("Random", "Conifer", "Desert", "Eudicot", "Monocot")
+@Range("Random", "Alder Buckthorn","Amazon Sword Plant","American Chestnut","American Sycamore","Apricot","Australian Pine","Baldcypress","Balsam Fir","Bamboo","Banana Tree","Basswood","Bay Laurel","Black Locust","Blue Gum Eucalyptus","Boxwood","Cabbage Palm Fern","California Bay","California Incense Cedar","California Palm","California Redwood","California Walnut","Coconut Palm","Common Hawthorn","Common Whitebeam","Conker Tree","Date Palm","Desert Willow","Douglas Fir","European Beech","European Larch","Ficus","Field Elm","Flannelbush","Flowering Dogwood","Giant Sequoia","Hedgehog Agave","Japanese Angelica Tree","Lacy Tree Philodendron","Leyland Cypress","Lily of the Valley","Lodgepole Pine","Mediterranean Buckthorn","Mexican Palmetto","Mountain Mahogany","Northern Red Oak","Norway Maple","Norway Spruce","Orange Tree","Orchid","Oval-leaved Privet","Palm Lily","Palo Verde","Paper Birch","Parlour Palm","Prickly Pear Cactus","Red Alder","Red Hickory","Rhododendron Azaleas","Rose","Ruffle Palm","Saguaro Cactus","Sassafras","Scots Pine","Sea Islands Yucca","Shadbush","Snake Plant","Southern Magnolia","Spanish Broom","Strawberry Tree","Sugar Maple","Sunflower","Sweetgum","Umbrella Acacia","Western Juniper","White Ash","White Oak","White Poplar","White Willow","Witch Hazel","","_____________________________","GENERICS","","Generic Dead Tree","Generic Stump","Generic Unknown","","_____________________________","PROXIES","","Algarrobo","American Elderberry","American Pepper","American Silverberry","Athel Tamarisk","Avocado","Black Tupelo","Buttonbush","Canada Buffaloberry","Chinaberry Tree","Chinese Tallow Tree","Common Hackberry","Common Holly","Common Persimmon","Desert Bitterbrush","European Hornbeam","Giant Chinquapin","Honey Locust","Hophornbeam","Huckleberry Shrub","Japanese Hemlock","Japanese Nutmeg","Judas Tree","Lawson Cypress","Loblolly Bay","Mexican Buckeye","Necklacepod","Northern Bilberry","Northern White Cedar","Octopus Tree","Osage Orange","Paper Bark Tree","Pawpaw","Persian Silk Tree","Princess Tree","Smooth Sumac","Sourwood","Southern Wax Myrtle","Tanoak","Tree of Heaven","Turkish Hazel","Western Soapberry","White Mulberry","Yellow Poplar","Yew","","_____________________________","LATIN NAME","","Abies balsamea","Acacia tortilis","Acer platanoides","Acer saccharum","Aesculus hippocastanum","Agave stricta","Ailanthus altissima","Aiphanes horrida","Albizia julibrissin","Alnus rubra","Amelanchier canadensis","Aralia elata","Arbutus unedo","Asimina triloba","Betula papyrifera","Bulbophyllum phalaenopsis","Buxus sempervirens","Calocedrus decurrens","Carnegiea saguaro","Carpinus betulus","Carya ovalis","Castanea dentata","Casuarina equisetifolia","Celtis occidentalis","Cephalanthus occidentalis","Cercis siliquastrum","Cercocarpus montanus","Chamaecyparis lawsoniana","Chamaedorea elegans","Chilopsis linearis","Chrysolepis chrysophylla","Citrus sinensis","Cocos nucifera","Convallaria majalis","Cordyline petiolaris","Cornus florida","Corylus colurna","Crataegus monogyna","Cupressus leylandii","Cyrilla racemiflora","Diospyros virginiana","Echinodorus bleheri","Elaeagnus commutata","Eucalyptus globulus","Fagus sylvatica","Ficus benjamina","Frangula alnus","Fraxinus americana","Fremontodendron californicum","Generic deadtree","Generic stump","Generic unknown","Gleditsia triacanthos","Gordonia lasianthus","Hamamelis virginiana","Helianthus annuus","Ilex aquifolium","Juglans regia","Juniperus occidentalis","Larix decidua","Laurus nobilis","Ligustrum ovalifolium","Liquidambar styraciflua","Liriodendron tulipifera","Lithocarpus densiflorus","Maclura pomifera","Magnolia grandiflora","Melaleuca quinquenervia","Melia azedarach","Morus alba","Musa acuminata","Myrica cerifera","Nyssa sylvatica","Opuntia aciculata","Ostrya virginiana","Oxydendrum arboreum","Parkinsonia aculeata","Paulownia tomentosa","Persea americana","Philodendron selloum","Phlebodium aureum","Phoenix dactylifera","Phyllostachys aurea","Picea abies","Pinus contorta","Pinus sylvestris","Platanus occidentalis","Populus tremuloides","Prosopis nigra","Prunus armeniaca","Pseudotsuga menziesii","Purshia glandulosa","Quercus alba","Quercus rubra","Rhamnus alaternus","Rhododendron tsutsuji","Rhus glabra","Robinia pseudoacacia","Rosa grandiflora","Sabal mexicana","Salix alba","Sambucus canadensis","Sansevieria trifasciata","Sapindus saponaria","Sassafras albidum","Schefflera actinophylla","Schinus molle","Sequoia sempervirens","Sequoiadendron giganteum","Shepherdia canadensis","Sophora tomentosa","Sorbus aria","Spartium junceum","Tamarix aphylla","Taxodium distichum","Taxus baccata","Thuja occidentalis","Tilia americana","Torreya nucifera","Triadica sebifera","Tsuga diversifolia","Ulmus minor","Umbellularia californica","Ungnadia speciosa","Vaccinium uliginosum","Washingtonia filifera","Yucca gloriosa")
+attr Tree_Type = "Random"
+
+
+@Description("For internal use and reporting, must be set to 'Source=Object'.")
+@Group("LINK TO OBJECT ATTRIBUTES",99) @Order(1)
+attr cutVolume = 0
+
+@Description("For internal use and reporting, must be set to 'Source=Object'.")
+@Group("LINK TO OBJECT ATTRIBUTES",99) @Order(2)
+attr fillVolume = 0
+
+
+
+
+	
+@StartRule
+GreenSpace -->
+	GreenSpace("main")
+
+GreenSpace(id) -->
+	Greenspace_Rules.GreenSpace(id)
+	
+GreenSpace(id, thematicColor) -->
+	set(Greenspace_Rules.Display_Textures, Display_Textures)  
+	set(Greenspace_Rules.Display_Thematics, Display_Thematics)  
+	set(Greenspace_Rules.Solid_Color, Solid_Color)  
+	set(Greenspace_Rules.Transparency, Transparency)
+	set(Greenspace_Rules.Green_Space_Type, Green_Space_Type)
+	set(Greenspace_Rules.Front_Yard_Type, Front_Yard_Type)
+	set(Greenspace_Rules.Front_Hardscape_Texture, Front_Hardscape_Texture)
+	set(Greenspace_Rules.Front_Hardscape_Scale, Front_Hardscape_Scale)
+	set(Greenspace_Rules.Front_Hardscape_Rotation, Front_Hardscape_Rotation)
+	set(Greenspace_Rules.Unit_Width, Unit_Width)
+	set(Greenspace_Rules.Rotation, Rotation)
+	set(Greenspace_Rules.Pervious_Hardscape, Pervious_Hardscape)
+	set(Greenspace_Rules.Pathway_Type, Pathway_Type)
+	set(Greenspace_Rules.Pathway_Scale, Pathway_Scale)
+	set(Greenspace_Rules.People_Percentage, People_Percentage)
+	set(Greenspace_Rules.Grass_Type, Grass_Type)
+	set(Greenspace_Rules.Grass_Scale, Grass_Scale)
+	set(Greenspace_Rules.Hedge_Type, Hedge_Type)
+	set(Greenspace_Rules.Hedge_Percentage, Hedge_Percentage)
+	set(Greenspace_Rules.Tree_Percentage, Tree_Percentage)
+	set(Greenspace_Rules.Max_Trees_Per_Acre, Max_Trees_Per_Acre)
+	#set(Greenspace_Rules.Tree_Height, Tree_Height)
+	set(Greenspace_Rules.Tree_Type, Tree_Type)
+	set(Greenspace_Rules.cutVolume, cutVolume)
+	set(Greenspace_Rules.fillVolume, fillVolume)
+	Greenspace_Rules.GreenSpace(id, thematicColor)
+
+
+DisableCGAWarnings -->
+	# This is rule exists only to stop the CGA warnings from showing; it has no use, otherwise.
+	# The below lines are just calling all of the "unused rules" so they do not flag as unused.
+	GreenSpace("", "")
+	

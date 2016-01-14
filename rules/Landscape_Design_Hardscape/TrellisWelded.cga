@@ -1,0 +1,188 @@
+/**
+ * File:    TrellisWelded.cga
+ * Created: 12 Apr 2014 16:54:55 GMT
+ * Author:  chri7180
+ */
+
+version "2015.0"
+
+
+@Group("SIZE and POSITION", 10) @Order(10)
+@Range(0.1,1)
+attr Start_Height = 0.3
+
+@Group("SIZE and POSITION") @Order(20)
+@Range(1.1,2)
+attr Trellis_Height = 2
+
+@Group("SIZE and POSITION") @Order(30)
+@Range(1.1,10)
+attr Trellis_Width = 3
+
+@Group("SIZE and POSITION") @Order(40)
+@Range(0.1,0.5)
+attr Approx_Cell_Height = 0.3
+
+@Group("SIZE and POSITION") @Order(50)
+@Range(0.1,0.5)
+attr Approx_Cell_Width = 0.3
+
+@Group("SIZE and POSITION") @Order(60)
+@Range(0.01,0.05)
+attr Frame_Thickness = 0.03
+
+@Group("SIZE and POSITION") @Order(70)
+@Range(0.01,0.05)
+attr Frame_Depth = 0.04
+
+@Group("SIZE and POSITION") @Order(80)
+attr Flip_Direction = false
+
+####################
+
+@Group("COLOR and TEXTURE", 90) @Order()
+@Color
+attr Trellis_Color = "#FFFFFF"
+
+
+
+#####################
+
+@StartRule
+TrellisOnGroundShape -->
+	alignScopeToAxes(y)
+	s('1, 0, '1)
+	set(groundScopeX, scope.sx)
+	set(groundScopeZ, scope.sz)
+	TrellisOnGroundShapeRotate
+	
+@Hidden
+attr groundScopeX = 0 
+@Hidden
+attr groundScopeZ = 0 
+@Hidden
+attr postRotateGroundScopeZ = 0 
+
+
+
+TrellisOnGroundShapeRotate -->
+	case groundScopeX < groundScopeZ: 
+		set(postRotateGroundScopeZ, groundScopeX)
+		rotateScope(0, 90, 0)
+		MakeVerticalPanel
+	else:
+		set(postRotateGroundScopeZ, groundScopeZ)
+		MakeVerticalPanel
+
+	
+MakeVerticalPanel -->
+	extrude(Trellis_Height)
+	comp(f) {
+		back:
+			t(0, 0, (-postRotateGroundScopeZ / 2))
+			TrellisOnVerticalPanel
+	}
+
+
+#####################
+
+
+
+
+
+@StartRule
+TrellisOnVerticalPanel -->
+	case Flip_Direction:
+		rotateScope(0, 180, 0)
+		TrellisSetup
+	else:
+		TrellisSetup
+
+TrellisSetup -->
+	color(Trellis_Color)
+	PositionOnVerticalPanel
+
+PositionOnVerticalPanel -->
+	t(0, Start_Height, 0)
+	ResizePanelY
+	
+ResizePanelY -->
+	s('1, Trellis_Height, 0)	
+	ResizePanelX
+	
+ResizePanelX -->
+	s(Trellis_Width, '1, '1)
+	center(x)
+	TrellisPanelDivisionX
+
+TrellisPanelDivisionX -->
+	split(x) {
+		Frame_Thickness: Extrude |
+		trellisWidthMinusOneFrame: TrellisPanelDivisionXStep2 
+	}
+
+trellisWidthMinusOneFrame = Trellis_Width - Frame_Thickness
+
+TrellisPanelDivisionXStep2 -->
+	split(x) {
+		cellWidthX: TileX
+	}*
+
+cellsFloorX = floor(scope.sx / Approx_Cell_Width)
+cellWidthX = scope.sx / cellsFloorX  
+openSpaceX = cellWidthX - Frame_Thickness
+ 
+TileX -->
+	split(x) {
+		openSpaceX: TrellisPanelDivisionY | 
+		Frame_Thickness: Extrude 
+	}
+
+TrellisPanelDivisionY -->
+	split(y) {
+		Frame_Thickness: Extrude |
+		trellisHeightMinusOneFrame: TrellisPanelDivisionYStep2 
+	}
+
+trellisHeightMinusOneFrame = Trellis_Height - Frame_Thickness
+
+TrellisPanelDivisionYStep2 -->
+	split(y) {
+		cellHeightY: TileY
+	}*
+
+cellsFloorY = floor(scope.sy / Approx_Cell_Height)
+cellHeightY = scope.sy / cellsFloorY  
+openSpaceY = cellHeightY - Frame_Thickness
+
+TileY -->
+	split(y) {
+		openSpaceY: OpenCell | 
+		Frame_Thickness: Extrude 
+	}
+
+Extrude --> 
+	extrude(Frame_Depth)
+	comp(f) {all: AddDirtMap} 
+	
+	
+OpenCell --> NIL 
+
+###################
+	
+dirtmapTexture = fileRandom("assets/SoCal/DirtMap/Dirt*.jpg")
+
+# XX Fix this to work best with each type.
+AddDirtMap -->
+	alignScopeToGeometry(yUp, any, world.lowest)
+	setupProjection(2,scope.xz,'1,'1)
+	projectUV(2)
+	rotateScope(2,rand(360),0)
+	set(material.dirtmap, dirtmapTexture)
+
+
+
+
+
+
+	

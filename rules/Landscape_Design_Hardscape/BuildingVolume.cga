@@ -1,0 +1,33 @@
+/**
+ * File:    BuildingVolume.cga
+ * Created: 25 Jul 2014 18:15:58 GMT
+ * Author:  Esri
+ */
+
+version "2015.0"
+
+
+attr mainColor = "#FFFFFF"
+attr borderColor = "#000000"
+attr height = 3
+attr border = 0.03
+attr transparency = 0.5
+attr sidewalkLift = 0.2
+
+@StartRule
+Shape -->
+	color(mainColor)
+	t(0,sidewalkLift,0)
+	extrude(height)
+	comp(f) {
+		all: Outline
+	}
+	
+Outline	-->
+	offset(-border)
+	comp(f) {
+		inside: set(material.opacity, 1 - transparency)  X. |
+		border: color(borderColor) X.
+	}
+
+

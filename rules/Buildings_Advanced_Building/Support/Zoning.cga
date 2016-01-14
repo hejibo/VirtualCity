@@ -1,0 +1,384 @@
+/**
+ * File:    Zoning.cga
+ * Created: 2 May 2013 16:13:36 GMT
+ * Author:  Esri
+ */
+
+version "2015.0"
+
+import zoningSettings: "Zoning Settings.cga" 
+
+
+
+@Group("ZONING DISPLAY",0) @Order(0) @Range("Building", "Envelope","Building & Envelope")
+attr Zoning_Display = "Building"
+
+@Group("ZONING DISPLAY",0) @Order(1) @Range(0.2,1)
+attr Envelope_Transparency = 0.4 
+
+@Group("ZONING DISPLAY") @Order(3)
+attr Story_Edge_Display = false
+
+@Group("ZONING DISPLAY") @Order(4)
+attr Story_Edge_Size = 0.15
+
+@Group("ZONING DISPLAY") @Order(5) 
+attr Story_Edge_Color = "#ffffff"
+
+
+@Group ("USAGE",1) @Order(10) @Range(0,5)
+attr Zone_1_Floor_Count = 0
+
+@Group ("USAGE") @Order(11)
+@Range("None", "Commercial", "Office", "Residential", "Parking", "Other")
+attr Zone_1_Usage = "Commercial"
+
+@Group ("USAGE") @Order(12) @Range(0,5)
+attr Zone_2_Floor_Count = 0
+
+@Group ("USAGE") @Order(13)
+@Range("None", "Commercial", "Office", "Residential", "Parking", "Other")
+attr Zone_2_Usage = "None"
+
+@Group ("USAGE") @Order(14) @Range(0,5)
+attr Zone_3_Floor_Count = 0
+
+@Group ("USAGE") @Order(15)
+@Range("None", "Commercial", "Office", "Residential", "Parking", "Other")
+attr Zone_3_Usage = "None"
+
+
+#######################################################################
+
+const Transect_T1 = "T1 Natural"
+const Transect_T2 = "T2 Rural"
+const Transect_T3 = "T3 Sub-Urban"
+const Transect_T4 = "T4 General Urban"
+const Transect_T5 = "T5 Urban Center"
+const Transect_T6 = "T6 Urban Core"
+
+floorCountMinPerTransect(transect) = 
+	case transect == Transect_T1: 1
+	case transect == Transect_T2: 1 
+	case transect == Transect_T3: 1
+	case transect == Transect_T4: 2
+	case transect == Transect_T5: 3
+	case transect == Transect_T6: 4
+	else: 1
+
+floorCountMaxPerTransect(transect) = 
+	case transect == Transect_T1: 1
+	case transect == Transect_T2: 2
+	case transect == Transect_T3: 3
+	case transect == Transect_T4: 4
+	case transect == Transect_T5: 5
+	case transect == Transect_T6: 8
+	else: 1
+
+streetSetbackPerTransect(transect) = 
+	case transect == Transect_T1: 0
+	case transect == Transect_T2: 14.63
+	case transect == Transect_T3: 3.66
+	case transect == Transect_T4: 1.83
+	case transect == Transect_T5: 0.61
+	case transect == Transect_T6: 0.61
+	else: 1
+
+sideSetbackPerTransect(transect) = 
+	case transect == Transect_T1: 0
+	case transect == Transect_T2: 29.26
+	case transect == Transect_T3: 3.66
+	case transect == Transect_T4: 0
+	case transect == Transect_T5: 0
+	case transect == Transect_T6: 0
+	else: 1
+
+backSetbackPerTransect(transect) = 
+	case transect == Transect_T1: 0
+	case transect == Transect_T2: 29.26
+	case transect == Transect_T3: 3.66
+	case transect == Transect_T4: 0.91
+	case transect == Transect_T5: 0.91
+	case transect == Transect_T6: 0
+	else: 1
+
+const defaultEnvelopeAngle = 50
+
+
+@Description("Determines form according to transect type. Overrides settings below if set to 'rule'.")
+@Group("3D FORM - TRANSECT",2) @Order(0) @Range("T1 Natural", "T2 Rural", "T3 Sub-Urban", "T4 General Urban", "T5 Urban Center", "T6 Urban Core")
+attr Transect = "T4 General Urban"
+
+
+@Description("Determines height limit of zoning envelope.")
+@Group("3D FORM - HEIGHT LIMIT",3) @Order(1) @Range("Limit Height to Max_Height", "Limit Height to Floor_Count_Max")
+attr Height_Method = "Limit Height to Floor_Count_Max"
+
+@Description("Set Height_Method control (above) to Max_Height to use this.")
+@Group("3D FORM - HEIGHT LIMIT") @Order(2)
+attr Max_Height = 19
+
+@Group("3D FORM - HEIGHT LIMIT") @Order(11) @Range(2,20)
+attr Floor_Count_Min = 
+	case Height_Method == "Limit Height to Floor_Count_Max": floorCountMinPerTransect(Transect)
+	else: floorCountMinPerMaxHeight
+
+@Group("3D FORM - HEIGHT LIMIT") @Order(12) @Range(2,20)
+attr Floor_Count_Max = 
+	case Height_Method == "Limit Height to Floor_Count_Max": floorCountMaxPerTransect(Transect)
+	else: floorCountMaxPerMaxHeight
+	
+# How many floors will fit into the max height?
+availableToUpperFloors = Max_Height - Roof_Height - Ground_Floor_Height  # - Foundation?
+floorCountMaxPerMaxHeight = 
+	case Max_Height < Ground_Floor_Height: 0
+	else: 1 + floor(availableToUpperFloors / Upper_Floor_Height)
+floorCountMinPerMaxHeight = 
+	case floorCountMaxPerMaxHeight <= 2: 1
+	case floorCountMaxPerMaxHeight <= 4: 2
+	case floorCountMaxPerMaxHeight <= 5: 3
+	else: floor(floorCountMaxPerMaxHeight * 0.7)  
+
+@Group ("3D FORM - HEIGHT LIMIT") @Order(13)
+attr Ground_Floor_Height = 4.6 
+
+@Group ("3D FORM - HEIGHT LIMIT") @Order(14)
+attr Upper_Floor_Height = 3.8
+
+@Group ("3D FORM - HEIGHT LIMIT") @Order(15)
+attr Roof_Height = 3 
+
+@Group ("3D FORM - SETBACKS",4) @Order(21) @Range(0,50)
+attr Street_Setback = streetSetbackPerTransect(Transect)
+
+@Group ("3D FORM - SETBACKS") @Order(22)
+attr Street_Height = defaultFacadeHeight
+
+@Group ("3D FORM - SETBACKS") @Order(23)
+attr Street_Angle = defaultEnvelopeAngle
+
+@Group ("3D FORM - SETBACKS") @Order(24)
+attr Back_Setback = backSetbackPerTransect(Transect)
+
+@Group ("3D FORM - SETBACKS") @Order(25)
+attr Back_Height = defaultFacadeHeight
+
+@Group ("3D FORM - SETBACKS") @Order(26)
+attr Back_Angle = defaultEnvelopeAngle
+
+@Group ("3D FORM - SETBACKS") @Order(27)
+attr Side_Setback= sideSetbackPerTransect(Transect)
+
+@Group ("3D FORM - SETBACKS") @Order(28)
+attr Side_Height = defaultFacadeHeight
+
+@Group ("3D FORM - SETBACKS") @Order(29)
+attr Side_Angle = defaultEnvelopeAngle
+
+@Hidden
+attr Foundation_Height = 0
+@Hidden
+attr Foundation_Adjustment = 0
+
+
+
+
+########################################################
+usageColor(usage) = 
+	case usage == "Residential" : zoningSettings.Zone_Color_Residential
+	case usage == "Commercial" : zoningSettings.Zone_Color_Commercial
+	case usage == "Office" : zoningSettings.Zone_Color_Office
+	case usage == "Parking" : zoningSettings.Zone_Color_Parking
+	case usage == "Other" : zoningSettings.Zone_Color_Other
+	case usage == "Green Space" : zoningSettings.Zone_Color_Green_Space
+	case usage == "None" : zoningSettings.Zone_Color_None
+	else: zoningSettings.Zone_Color_None
+
+
+# Note: This will affect calculations based on the envelope.
+const thisMuchBiggerThanParcel = 0.1  
+
+
+
+ZoningEnvelope -->
+	# Squash the scope, so that differently-setback zoning envelopes and buildings will have stories at same level.
+	s('1,0,'1)
+	setback(Street_Setback) { street.front: NIL | remainder: 
+		setback(Back_Setback) { street.back: NIL | remainder: 
+ 			setback(Side_Setback) { street.left: NIL | remainder:
+	 			setback(Side_Setback) { street.right: NIL | remainder:
+					ZoningShell 
+				}
+			}
+		}
+	}
+
+foundationHeightAdjusted = Foundation_Height + Foundation_Adjustment
+
+maxEnvelopeHeight =  
+	case Height_Method == "Limit Height to Max_Height": maxEnvelopeHeightFromMaxHeight 
+	else: maxEnvelopeHeightFromFloorCount
+
+
+const maxEnvelopeHeightFromMaxHeight = foundationHeightAdjusted + Max_Height
+
+const maxEnvelopeHeightFromFloorCount = foundationHeightAdjusted + Ground_Floor_Height 
+	+ (Upper_Floor_Height * (Floor_Count_Max - 1)) + Roof_Height
+
+const defaultFacadeHeight = maxEnvelopeHeight - Roof_Height
+
+
+ZoningShell -->
+	case maxEnvelopeHeight > 0:
+		alignScopeToAxes(y)
+		# Scale out slightly so as to not coincide with exterior surface of building.
+		s(scope.sx + thisMuchBiggerThanParcel, '1, scope.sz + thisMuchBiggerThanParcel)
+		center(xz) 
+		set(material.opacity, Envelope_Transparency)
+		envelope(maxEnvelopeHeight, Street_Height, Street_Angle, Back_Height, Back_Angle, Side_Height, Side_Angle)
+		ColorByUsage
+	else: NIL
+		
+usagePerFloor(floorNumber) =
+	case Zone_1_Floor_Count <= 0: Zone_1_Usage
+	case floorNumber >= zone1StartFloor && floorNumber <= zone1EndFloor: Zone_1_Usage
+	case floorNumber >= zone2StartFloor && floorNumber <= zone2EndFloor: Zone_2_Usage 
+	case floorNumber >= zone3StartFloor && floorNumber <= zone3EndFloor: Zone_3_Usage
+	else: ""  
+
+# Incoming floorNumber is zero based (ground floor is zero).
+zone1StartFloor = 0
+zone1EndFloor = zone1StartFloor + (Zone_1_Floor_Count - 1)   
+zone2StartFloor = zone1EndFloor + 1 
+zone2EndFloor = zone2StartFloor + (Zone_2_Floor_Count - 1)
+zone3StartFloor = zone2EndFloor + 1 
+zone3EndFloor = zone3StartFloor + (Zone_3_Floor_Count - 1)
+ 
+
+zone1Height =
+	case Zone_1_Floor_Count <= 0 || Zone_1_Usage == "None": 100000	
+	case Zone_1_Floor_Count == 1: 
+		Ground_Floor_Height + foundationHeightAdjusted
+	else:
+		Ground_Floor_Height + foundationHeightAdjusted + (Upper_Floor_Height * (rint(Zone_1_Floor_Count) - 1))
+
+zone2Height =
+	case Zone_2_Floor_Count > 0 && Zone_2_Usage != "None":
+		rint(Zone_2_Floor_Count) * Upper_Floor_Height
+	else: 0
+
+zone3Height =
+	case Zone_3_Floor_Count > 0 && Zone_3_Usage != "None":
+		rint(Zone_3_Floor_Count) * Upper_Floor_Height
+	else: 0
+
+
+
+
+
+
+ColorByUsage -->
+	split(y) {zone1Height: Zone1 |
+		zone2Height: Zone2 | 
+		zone3Height: Zone3 |
+		~1 : NoZone |
+		Roof_Height: RoofZone} 
+
+
+RoofZone --> ZoneColorPlusStoryEdge(usageColor(roofUsage), false)
+const roofUsage =
+	case noZoneIsShowing: zoningSettings.Zone_Color_None
+	case Zone_3_Floor_Count > 0 && Zone_3_Usage != "None": Zone_3_Usage
+	case Zone_2_Floor_Count > 0 && Zone_2_Usage != "None": Zone_2_Usage
+	else: Zone_1_Usage
+
+noZoneIsShowing = (zone1Height + zone2Height + zone3Height + Roof_Height) < maxEnvelopeHeight
+
+NoZone --> 
+	split(y) {Upper_Floor_Height: ZoneColorPlusStoryEdge(zoningSettings.Zone_Color_None, true)}*
+
+Zone1 -->  
+	case Zone_1_Floor_Count == 1:
+		ZoneColorPlusStoryEdge(usageColor(Zone_1_Usage), false)
+	else:
+		split(y) {Ground_Floor_Height + foundationHeightAdjusted:
+			ZoneColorPlusStoryEdge(usageColor(Zone_1_Usage), false)
+			| {Upper_Floor_Height: 
+			ZoneColorPlusStoryEdge(usageColor(Zone_1_Usage), false)}* }
+
+Zone2 --> 
+	split(y) {Upper_Floor_Height: ZoneColorPlusStoryEdge(usageColor(Zone_2_Usage), true)}*
+
+Zone3 --> 
+	split(y) {Upper_Floor_Height: ZoneColorPlusStoryEdge(usageColor(Zone_3_Usage), true)}*
+
+ZoneColorPlusStoryEdge(usageColor, isLastZone) -->
+	color(usageColor)
+	comp(f){top: StoryEdgeDisplay(case isLastZone: (split.index == split.total - 1) else: false)}
+	X.
+
+StoryEdgeDisplay(isLastStory) -->
+	case Story_Edge_Display && !isLastStory:
+		offset(Story_Edge_Size, border)
+		extrude(-Story_Edge_Size) 
+		color(Story_Edge_Color)
+		X.
+	else: NIL
+
+###########################################################
+# PERFORMANCE SPECS PER USAGE
+
+waterConsumptionPerUsage(usage) = 
+	case usage == "Residential": zoningSettings.Residential_Water_Consumption_Annual__L_m2
+	case usage == "Commercial": zoningSettings.Commercial_Water_Consumption_Annual__L_m2
+	case usage == "Office": zoningSettings.Office_Water_Consumption_Annual__L_m2
+	case usage == "Parking": zoningSettings.Parking_Water_Consumption_Annual__L_m2
+	case usage == "Other": zoningSettings.Other_Water_Consumption_Annual__L_m2
+	else: 0	
+
+percentGreywaterProducedPerUsage(usage) =
+	case usage == "Residential": zoningSettings.Residential_Water_Percent_Greywater_Produced
+	case usage == "Commercial": zoningSettings.Commercial_Water_Percent_Greywater_Produced
+	case usage == "Office": zoningSettings.Office_Water_Percent_Greywater_Produced
+	case usage == "Parking": zoningSettings.Parking_Water_Percent_Greywater_Produced
+	case usage == "Other": zoningSettings.Other_Water_Percent_Greywater_Produced
+	else: 0	
+
+electricConsumptionPerUsage(usage) = 
+	case usage == "Residential": zoningSettings.Residential_Electricity_Consumption_Annual__kWh_m2
+	case usage == "Commercial": zoningSettings.Commercial_Electricity_Consumption_Annual__kWh_m2
+	case usage == "Office": zoningSettings.Office_Electricity_Consumption_Annual__kWh_m2
+	case usage == "Parking": zoningSettings.Parking_Electricity_Consumption_Annual__kWh_m2
+	case usage == "Other": zoningSettings.Other_Electricity_Consumption_Annual__kWh_m2
+	else: 0	
+
+heatingConsumptionPerUsage(usage) = 
+	case usage == "Residential": zoningSettings.Residential_Heating_Consumption_Annual__kWh_m2
+	case usage == "Commercial": zoningSettings.Commercial_Heating_Consumption_Annual__kWh_m2
+	case usage == "Office": zoningSettings.Office_Heating_Consumption_Annual__kWh_m2
+	case usage == "Parking": zoningSettings.Parking_Heating_Consumption_Annual__kWh_m2
+	case usage == "Other": zoningSettings.Other_Heating_Consumption_Annual__kWh_m2
+	else: 0	
+
+domesticWastePerUsage(usage) = 
+	case usage == "Residential": zoningSettings.Residential_Domestic_Waste_Annual__kg_m2
+	case usage == "Commercial": zoningSettings.Commercial_Domestic_Waste_Annual__kg_m2
+	case usage == "Office": zoningSettings.Office_Domestic_Waste_Annual__kg_m2
+	case usage == "Parking": zoningSettings.Parking_Domestic_Waste_Annual__kg_m2
+	case usage == "Other": zoningSettings.Other_Domestic_Waste_Annual__kg_m2
+	else: 0	
+
+constructionWastePerUsage(usage) = 
+	case usage == "Residential": zoningSettings.Residential_Construction_Waste_Avg__kg_m2
+	case usage == "Commercial": zoningSettings.Commercial_Construction_Waste_Avg__kg_m2
+	case usage == "Office": zoningSettings.Office_Construction_Waste_Avg__kg_m2
+	case usage == "Parking": zoningSettings.Parking_Construction_Waste_Avg__kg_m2
+	case usage == "Other": zoningSettings.Parking_Construction_Waste_Avg__kg_m2
+	else: 0	
+		
+		
+DisableCGAWarnings -->
+	# This is rule exists only to stop the CGA warnings from showing; it has no use, otherwise.
+	# The below lines are just calling all of the "unused rules" so they do not flag as unused.
+	ZoningEnvelope
+		

@@ -1,0 +1,208 @@
+/**
+ * File:    Photovoltaic.cga
+ * Created: 13 Jun 2012 12:30:39 GMT
+ * Author:  Esri
+ */
+
+version "2015.0"
+
+import env : "Environment Settings.cga"
+
+
+################################################
+# DISPLAY OPTIONS
+
+
+@Hidden
+attr Display_Textures = true
+@Hidden
+attr Display_Thematics = "Thematics Off" 
+@Hidden
+attr Solid_Color = ""
+@Hidden
+attr Transparency = 1
+@Hidden
+attr Level_of_Detail = "Medium"
+const lowLOD = Level_of_Detail == "Low" 
+
+
+texturingOn = Display_Textures 	# Shorthand.
+thematicsOn = Display_Thematics != "Thematics Off"
+coloringOn = !thematicsOn && texturingOn	# Shorthand.
+
+@Hidden
+attr thematicColor = ""
+
+
+
+
+##############################################################
+
+
+@Description("You must set Roof_Type = Flat to use solar panels (in this version at least)")
+@Group ("PHOTOVOLTAIC ELEMENTS",1) @Order(0)
+attr Solar_Panels_On = false
+
+
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(10) @Range(2,10)
+attr Row_Spacing = 5
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(11) @Range(0.1,2)
+attr Column_Spacing	= 0.15
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(12) @Range(0.5,2)
+attr Height_Above_Floor	= 0.75
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(13) @Range(1,5)
+attr Array_Width = 2
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(14) @Range(0.75,5)
+attr Panel_Height = 1.5
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(14) @Range(0.2,1)
+attr Panel_Width = 0.45
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(15) @Range(0, 90)
+attr Panel_Inclination = 35
+@Hidden
+attr Element_Thickness = 0.05
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(17) @Range(-180,180)
+attr Custom_Rotation = 0
+@Group ("PHOTOVOLTAIC ELEMENTS") @Order(19) @Range(0,5)
+attr Offset_From_Border	= 0.5
+
+@Hidden
+attr Element_Constr_Offset = 0.015
+
+# Cost Estimates
+
+@Group ("COST ESTIMATION",2)
+attr Panel_Cost_M2 = 1000
+
+placementBandWidth = 0.05
+
+
+@StartRule		
+PVElements -->
+	offset(-Offset_From_Border, inside)
+	PVCreation
+
+PVCreation -->
+	alignScopeToAxes() # align scope to world xyz = 'south'
+	split(z) {{~Row_Spacing/2 : NIL | placementBandWidth : PlacementBand }* | ~Row_Spacing/2 : NIL }
+
+PlacementBand -->
+	split(x) {{~Column_Spacing : NIL | Array_Width : innerRect PutPVElementWidthTest }* | ~Column_Spacing : NIL }
+
+PutPVElementWidthTest -->
+	case scope.sx > 0.9 * Array_Width :
+		PutPVElement
+	else :
+		NIL
+
+PutPVElement -->
+	alignScopeToAxes()
+	ElementConstruction
+	s(Array_Width,Element_Thickness, Panel_Height)
+	i("builtin:cube")
+	center(xz)
+	t(0,Height_Above_Floor,0)
+	r(scopeCenter, Panel_Inclination, Custom_Rotation, 0)
+	ElementDetailing
+
+ElementConstruction -->
+	alignScopeToAxes()
+	r(scopeCenter, 0, Custom_Rotation, 0)
+	s('1,Height_Above_Floor, 0.02)
+	center(xz)
+	t(0,0,'-1)
+	split(x){.02 : Beam | ~1 : NIL | 0.02 : Beam}
+
+Beam -->
+		s(0.04, Height_Above_Floor, 0.04)
+		center(xz)
+		i("builtin:cube")
+		BeamStep2
+
+BeamStep2 -->
+	case lowLOD:
+		comp(f){3: ElementFace}
+	else:
+		ElementFace
+
+ElementDetailing -->
+	case lowLOD:
+		comp(f) {top : PVAreaMain | all : NIL}
+	else:
+		comp(f) {top : ElementFront | all : ElementFace}
+	
+	
+ElementFace -->
+	case coloringOn:
+		color(.3,.3,.3)
+		ElementFace.
+	else: X.
+
+ElementFront -->
+	offset(-Element_Constr_Offset)
+	comp(f) {inside : PVArea | all : ElementFace}
+
+PVArea -->
+	t(0,0,-Element_Constr_Offset)
+	extrude(Element_Constr_Offset)
+	comp(f) {top : NIL | bottom : reverseNormals PVAreaMain | all : reverseNormals ElementFace}
+
+PVAreaMain -->
+	split(x) {{~ Panel_Width : Cell 
+		| Element_Constr_Offset : PVBays }* 
+		| ~ Panel_Width : Cell}
+	
+PVBays -->
+	case lowLOD: NIL 
+	else: extrude(Element_Constr_Offset) ElementFace 
+	
+Cell -->
+	report("Construction, Solar Panel Cost ($)", geometry.area * Panel_Cost_M2)
+	report("Construction, Solar Panel Cell Area", geometry.area) 
+	report("Building Performance Target, Energy, Solar Generated (kWh/yr)", geometry.area * env.Solar_Intensity_Avg__kWh_m2_day * 365)
+	CellStep2
+	
+CellStep2 -->
+	case texturingOn:
+		setupProjection(0, scope.xy, '1, '1)
+		projectUV(0)
+		texture("Buildings_Advanced_Building/PV_Panel.jpg")
+		# specularity
+		set(material.specular.r,.6) # for the looks in the CityEngine we add some over-exagerated specularity (otherwise the model is too dark for opengl...)
+		set(material.specular.g,.6)
+		set(material.specular.b,.6)		
+		set(material.shininess,30)
+		# reflectivity
+		set(material.reflectivity, .55)
+	else: X.
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+style Large
+attr Solar_Panels_On = true
+attr Row_Spacing = 9.0
+attr Column_Spacing = 0.68
+attr Array_Width = 4.0
+attr Panel_Height = 2.65
+attr Panel_Width = 1.0
+
+
+style Small
+attr Solar_Panels_On = true
